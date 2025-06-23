@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -66,6 +66,19 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   const [isLoading, setIsLoading] = useState(false)
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
 
+  // Listen for custom events from BottomActions
+  useEffect(() => {
+    const handleOpenModal = (event: CustomEvent) => {
+      if (event.detail.type === 'event') {
+        setShowCreateModal(true)
+      }
+    }
+
+    window.addEventListener('openCreateModal', handleOpenModal as EventListener)
+    return () => {
+      window.removeEventListener('openCreateModal', handleOpenModal as EventListener)
+    }
+  }, [])
 
   const addEvent = async () => {
     if (!newEventTitle.trim() || !newEventDate || !isOnline) return
@@ -266,10 +279,6 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   const upcomingEvents = sortedEvents.filter(event => isUpcoming(event.date))
   const pastEvents = sortedEvents.filter(event => !isUpcoming(event.date))
 
-
-
-
-
   // Get minimum date for input (today)
   const today = new Date().toISOString().split('T')[0]
 
@@ -458,7 +467,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   )
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Family Events</h2>
         <div className="inline-flex rounded-lg border bg-muted p-1">
@@ -486,18 +495,6 @@ export const EventsTab: React.FC<EventsTabProps> = ({
       </div>
 
       {viewMode === 'list' ? renderListView() : renderCalendarView()}
-
-      {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <Button 
-          onClick={() => setShowCreateModal(true)}
-          disabled={!isOnline}
-          size="lg"
-          className="rounded-full h-14 w-14 shadow-lg hover:shadow-xl transition-all duration-200"
-        >
-          <Plus className="h-6 w-6" />
-        </Button>
-      </div>
 
       <Dialog
         open={showCreateModal}

@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { ThemeSwitcher } from '../ui/ThemeSwitcher'
+import { BottomActions } from '../ui/BottomActions'
 import { ListsTab } from './ListsTab'
 import { DocumentsTab } from './DocumentsTab'
 import { EventsTab } from './EventsTab'
 import { CardsTab } from './CardsTab'
+import { SettingsTab } from './SettingsTab'
 import { 
   List, 
   FileText, 
@@ -17,7 +19,8 @@ import {
   Home,
   Users,
   Plus,
-  Settings
+  Settings,
+  Camera
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
@@ -50,7 +53,7 @@ interface DashboardProps {
   isOnline: boolean
 }
 
-type AppView = 'home' | 'lists' | 'documents' | 'events' | 'cards'
+type AppView = 'home' | 'lists' | 'documents' | 'events' | 'cards' | 'settings'
 
 export const Dashboard: React.FC<DashboardProps> = ({
   user,
@@ -230,53 +233,78 @@ export const Dashboard: React.FC<DashboardProps> = ({
     })
   }
 
+  // Get contextual actions based on current view
+  const getContextualActions = () => {
+    const actions = []
+    
+    switch (currentView) {
+      case 'lists':
+        actions.push({
+          icon: Plus,
+          label: 'Create New List',
+          onClick: () => {
+            // This will be handled by the ListsTab component's state
+            const event = new CustomEvent('openCreateModal', { detail: { type: 'list' } })
+            window.dispatchEvent(event)
+          },
+          disabled: !isOnline
+        })
+        break
+      case 'documents':
+        actions.push({
+          icon: Plus,
+          label: 'Add Document',
+          onClick: () => {
+            const event = new CustomEvent('openCreateModal', { detail: { type: 'document' } })
+            window.dispatchEvent(event)
+          },
+          disabled: !isOnline
+        })
+        break
+      case 'events':
+        actions.push({
+          icon: Plus,
+          label: 'Add Event',
+          onClick: () => {
+            const event = new CustomEvent('openCreateModal', { detail: { type: 'event' } })
+            window.dispatchEvent(event)
+          },
+          disabled: !isOnline
+        })
+        break
+      case 'cards':
+        actions.push(
+          {
+            icon: Camera,
+            label: 'Scan Card',
+            onClick: () => {
+              const event = new CustomEvent('openCreateModal', { detail: { type: 'scan' } })
+              window.dispatchEvent(event)
+            },
+            variant: 'secondary' as const,
+            disabled: !isOnline
+          },
+          {
+            icon: Plus,
+            label: 'Add Card',
+            onClick: () => {
+              const event = new CustomEvent('openCreateModal', { detail: { type: 'card' } })
+              window.dispatchEvent(event)
+            },
+            disabled: !isOnline
+          }
+        )
+        break
+    }
+    
+    return actions
+  }
+
   if (currentView !== 'home') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        {/* App View Header */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-white/20 sticky top-0 z-50">
-          <div className="flex items-center justify-between p-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setCurrentView('home')}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Home
-            </Button>
-            
-            <div className="flex items-center gap-2">
-              <ThemeSwitcher size="sm" showLabel={false} />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {user.email?.[0].toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onLeaveGroup}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Switch Family
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-
         {/* App Content */}
-        <div className="p-4">
+        <div className="p-4 pb-32">
           {currentView === 'lists' && (
             <ListsTab 
               lists={lists} 
@@ -309,7 +337,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
               isOnline={isOnline}
             />
           )}
+          {currentView === 'settings' && (
+            <SettingsTab 
+              user={user}
+              isOnline={isOnline}
+            />
+          )}
         </div>
+
+        {/* Bottom Actions for App Views */}
+        <BottomActions
+          user={user}
+          onHome={() => setCurrentView('home')}
+          onSettings={() => setCurrentView('settings')}
+          onLogout={onLogout}
+          onManageFamilies={onLeaveGroup}
+          contextualActions={getContextualActions()}
+          isHome={false}
+        />
       </div>
     )
   }
@@ -422,44 +467,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* Bottom Actions */}
-      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2">
-        <div className="flex items-center gap-4 bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg rounded-full px-6 py-3 shadow-lg border border-white/20">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full w-10 h-10"
-          >
-            <Home className="h-5 w-5" />
-          </Button>
-          
-          <ThemeSwitcher size="sm" showLabel={false} />
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full w-10 h-10">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {user.email?.[0].toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="mb-4">
-              <DropdownMenuLabel className="text-xs">{user.email}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onLeaveGroup} className="text-sm">
-                <Settings className="mr-2 h-4 w-4" />
-                Manage Families
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onLogout} className="text-sm">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+      {/* Bottom Actions for Home Screen */}
+      <BottomActions
+        user={user}
+        onHome={() => {}} // No action needed since we're already home
+        onSettings={() => setCurrentView('settings')}
+        onLogout={onLogout}
+        onManageFamilies={onLeaveGroup}
+        isHome={true}
+      />
 
       <div className="h-32"></div> {/* Bottom spacing */}
     </div>
