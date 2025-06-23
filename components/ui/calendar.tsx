@@ -1,208 +1,438 @@
-import * as React from "react"
+'use client';
+
+import { Button } from '@/components/ui/button';
 import {
-  ChevronDownIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from "lucide-react"
-import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { getDay, getDaysInMonth, isSameDay } from 'date-fns';
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { type ReactNode, createContext, useContext, useState } from 'react';
+import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
 
-import { cn } from "@/lib/utils"
-import { Button, buttonVariants } from "@/components/ui/button"
+export type CalendarState = {
+  month: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
+  year: number;
+  setMonth: (month: CalendarState['month']) => void;
+  setYear: (year: CalendarState['year']) => void;
+};
 
-function Calendar({
+export const useCalendar = create<CalendarState>()(
+  devtools((set) => ({
+    month: new Date().getMonth() as CalendarState['month'],
+    year: new Date().getFullYear(),
+    setMonth: (month: CalendarState['month']) => set(() => ({ month })),
+    setYear: (year: CalendarState['year']) => set(() => ({ year })),
+  }))
+);
+
+type CalendarContextProps = {
+  locale: Intl.LocalesArgument;
+  startDay: number;
+};
+
+const CalendarContext = createContext<CalendarContextProps>({
+  locale: 'en-US',
+  startDay: 0,
+});
+
+export type Status = {
+  id: string;
+  name: string;
+  color: string;
+};
+
+export type Feature = {
+  id: string;
+  name: string;
+  startAt: Date;
+  endAt: Date;
+  status: Status;
+};
+
+type ComboboxProps = {
+  value: string;
+  setValue: (value: string) => void;
+  data: {
+    value: string;
+    label: string;
+  }[];
+  labels: {
+    button: string;
+    empty: string;
+    search: string;
+  };
+  className?: string;
+};
+
+export const monthsForLocale = (
+  localeName: Intl.LocalesArgument,
+  monthFormat: Intl.DateTimeFormatOptions['month'] = 'long'
+) => {
+  const format = new Intl.DateTimeFormat(localeName, { month: monthFormat })
+    .format;
+
+  return Array.from({ length: 12 }, (_, m) =>
+    format(new Date(Date.UTC(2021, m % 12)))
+  );
+};
+
+export const daysForLocale = (locale: Intl.LocalesArgument, startDay: number) => {
+  const weekdays: string[] = [];
+  const baseDate = new Date(2024, 0, startDay);
+
+  for (let i = 0; i < 7; i++) {
+    weekdays.push(
+      new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(baseDate)
+    );
+    baseDate.setDate(baseDate.getDate() + 1);
+  }
+
+  return weekdays;
+};
+
+const Combobox = ({
+  value,
+  setValue,
+  data,
+  labels,
   className,
-  classNames,
-  showOutsideDays = true,
-  captionLayout = "label",
-  buttonVariant = "ghost",
-  formatters,
-  components,
-  ...props
-}: React.ComponentProps<typeof DayPicker> & {
-  buttonVariant?: React.ComponentProps<typeof Button>["variant"]
-}) {
-  const defaultClassNames = getDefaultClassNames()
+}: ComboboxProps) => {
+  const [open, setOpen] = useState(false);
 
   return (
-    <DayPicker
-      showOutsideDays={showOutsideDays}
-      className={cn(
-        "bg-background group/calendar p-3 [--cell-size:2rem] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
-        String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
-        String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
-        className
-      )}
-      captionLayout={captionLayout}
-      formatters={{
-        formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
-        ...formatters,
-      }}
-      classNames={{
-        root: cn("w-fit", defaultClassNames.root),
-        months: cn(
-          "relative flex flex-col gap-4 md:flex-row",
-          defaultClassNames.months
-        ),
-        month: cn("flex w-full flex-col gap-4", defaultClassNames.month),
-        nav: cn(
-          "absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1",
-          defaultClassNames.nav
-        ),
-        button_previous: cn(
-          buttonVariants({ variant: buttonVariant }),
-          "h-[--cell-size] w-[--cell-size] select-none p-0 aria-disabled:opacity-50",
-          defaultClassNames.button_previous
-        ),
-        button_next: cn(
-          buttonVariants({ variant: buttonVariant }),
-          "h-[--cell-size] w-[--cell-size] select-none p-0 aria-disabled:opacity-50",
-          defaultClassNames.button_next
-        ),
-        month_caption: cn(
-          "flex h-[--cell-size] w-full items-center justify-center px-[--cell-size]",
-          defaultClassNames.month_caption
-        ),
-        dropdowns: cn(
-          "flex h-[--cell-size] w-full items-center justify-center gap-1.5 text-sm font-medium",
-          defaultClassNames.dropdowns
-        ),
-        dropdown_root: cn(
-          "has-focus:border-ring border-input shadow-xs has-focus:ring-ring/50 has-focus:ring-[3px] relative rounded-md border",
-          defaultClassNames.dropdown_root
-        ),
-        dropdown: cn("absolute inset-0 opacity-0", defaultClassNames.dropdown),
-        caption_label: cn(
-          "select-none font-medium",
-          captionLayout === "label"
-            ? "text-sm"
-            : "[&>svg]:text-muted-foreground flex h-8 items-center gap-1 rounded-md pl-2 pr-1 text-sm [&>svg]:size-3.5",
-          defaultClassNames.caption_label
-        ),
-        table: "w-full border-collapse",
-        weekdays: cn("flex", defaultClassNames.weekdays),
-        weekday: cn(
-          "text-muted-foreground flex-1 select-none rounded-md text-[0.8rem] font-normal",
-          defaultClassNames.weekday
-        ),
-        week: cn("mt-2 flex w-full", defaultClassNames.week),
-        week_number_header: cn(
-          "w-[--cell-size] select-none",
-          defaultClassNames.week_number_header
-        ),
-        week_number: cn(
-          "text-muted-foreground select-none text-[0.8rem]",
-          defaultClassNames.week_number
-        ),
-        day: cn(
-          "group/day relative aspect-square h-full w-full select-none p-0 text-center [&:first-child[data-selected=true]_button]:rounded-l-md [&:last-child[data-selected=true]_button]:rounded-r-md",
-          defaultClassNames.day
-        ),
-        range_start: cn(
-          "bg-accent rounded-l-md",
-          defaultClassNames.range_start
-        ),
-        range_middle: cn("rounded-none", defaultClassNames.range_middle),
-        range_end: cn("bg-accent rounded-r-md", defaultClassNames.range_end),
-        today: cn(
-          "bg-accent text-accent-foreground rounded-md data-[selected=true]:rounded-none",
-          defaultClassNames.today
-        ),
-        outside: cn(
-          "text-muted-foreground aria-selected:text-muted-foreground",
-          defaultClassNames.outside
-        ),
-        disabled: cn(
-          "text-muted-foreground opacity-50",
-          defaultClassNames.disabled
-        ),
-        hidden: cn("invisible", defaultClassNames.hidden),
-        ...classNames,
-      }}
-      components={{
-        Root: ({ className, rootRef, ...props }) => {
-          return (
-            <div
-              data-slot="calendar"
-              ref={rootRef}
-              className={cn(className)}
-              {...props}
-            />
-          )
-        },
-        Chevron: ({ className, orientation, ...props }) => {
-          if (orientation === "left") {
-            return (
-              <ChevronLeftIcon className={cn("size-4", className)} {...props} />
-            )
-          }
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          aria-expanded={open}
+          className={cn('w-40 justify-between capitalize', className)}
+        >
+          {value
+            ? data.find((item) => item.value === value)?.label
+            : labels.button}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-40 p-0">
+        <Command
+          filter={(value, search) => {
+            const label = data.find((item) => item.value === value)?.label;
 
-          if (orientation === "right") {
-            return (
-              <ChevronRightIcon
-                className={cn("size-4", className)}
-                {...props}
-              />
-            )
-          }
+            return label?.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+          }}
+        >
+          <CommandInput placeholder={labels.search} />
+          <CommandList>
+            <CommandEmpty>{labels.empty}</CommandEmpty>
+            <CommandGroup>
+              {data.map((item) => (
+                <CommandItem
+                  key={item.value}
+                  value={item.value}
+                  onSelect={(currentValue) => {
+                    setValue(currentValue === value ? '' : currentValue);
+                    setOpen(false);
+                  }}
+                  className="capitalize"
+                >
+                  <Check
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      value === item.value ? 'opacity-100' : 'opacity-0'
+                    )}
+                  />
+                  {item.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
-          return (
-            <ChevronDownIcon className={cn("size-4", className)} {...props} />
-          )
-        },
-        DayButton: CalendarDayButton,
-        WeekNumber: ({ children, ...props }) => {
-          return (
-            <td {...props}>
-              <div className="flex size-[--cell-size] items-center justify-center text-center">
-                {children}
-              </div>
-            </td>
-          )
-        },
-        ...components,
-      }}
-      {...props}
-    />
-  )
-}
+type OutOfBoundsDayProps = {
+  day: number;
+};
 
-function CalendarDayButton({
-  className,
-  day,
-  modifiers,
-  ...props
-}: React.ComponentProps<typeof DayButton>) {
-  const defaultClassNames = getDefaultClassNames()
+const OutOfBoundsDay = ({ day }: OutOfBoundsDayProps) => (
+  <div className="relative h-full w-full bg-secondary p-1 text-muted-foreground text-xs">
+    {day}
+  </div>
+);
 
-  const ref = React.useRef<HTMLButtonElement>(null)
-  React.useEffect(() => {
-    if (modifiers.focused) ref.current?.focus()
-  }, [modifiers.focused])
+export type CalendarBodyProps = {
+  features: Feature[];
+  children: (props: {
+    feature: Feature;
+  }) => ReactNode;
+};
 
-  return (
-    <Button
-      ref={ref}
-      variant="ghost"
-      size="icon"
-      data-day={day.date.toLocaleDateString()}
-      data-selected-single={
-        modifiers.selected &&
-        !modifiers.range_start &&
-        !modifiers.range_end &&
-        !modifiers.range_middle
+export const CalendarBody = ({ features, children }: CalendarBodyProps) => {
+  const { month, year } = useCalendar();
+  const { startDay } = useContext(CalendarContext);
+  const daysInMonth = getDaysInMonth(new Date(year, month, 1));
+  const firstDay = (getDay(new Date(year, month, 1)) - startDay + 7) % 7;
+  const days: ReactNode[] = [];
+
+  const prevMonth = month === 0 ? 11 : month - 1;
+  const prevMonthYear = month === 0 ? year - 1 : year;
+  const prevMonthDays = getDaysInMonth(new Date(prevMonthYear, prevMonth, 1));
+  const prevMonthDaysArray = Array.from(
+    { length: prevMonthDays },
+    (_, i) => i + 1
+  );
+
+  for (let i = 0; i < firstDay; i++) {
+    const day = prevMonthDaysArray[prevMonthDays - firstDay + i];
+
+    if (day) {
+      days.push(<OutOfBoundsDay key={`prev-${i}`} day={day} />);
+    }
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const featuresForDay = features.filter((feature) => {
+      return isSameDay(new Date(feature.endAt), new Date(year, month, day));
+    });
+
+    days.push(
+      <div
+        key={day}
+        className="relative flex h-full w-full flex-col gap-1 p-1 text-muted-foreground text-xs"
+      >
+        {day}
+        <div>
+          {featuresForDay.slice(0, 3).map((feature) => children({ feature }))}
+        </div>
+        {featuresForDay.length > 3 && (
+          <span className="block text-muted-foreground text-xs">
+            +{featuresForDay.length - 3} more
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  const nextMonth = month === 11 ? 0 : month + 1;
+  const nextMonthYear = month === 11 ? year + 1 : year;
+  const nextMonthDays = getDaysInMonth(new Date(nextMonthYear, nextMonth, 1));
+  const nextMonthDaysArray = Array.from(
+    { length: nextMonthDays },
+    (_, i) => i + 1
+  );
+
+  const remainingDays = 7 - ((firstDay + daysInMonth) % 7);
+  if (remainingDays < 7) {
+    for (let i = 0; i < remainingDays; i++) {
+      const day = nextMonthDaysArray[i];
+
+      if (day) {
+        days.push(<OutOfBoundsDay key={`next-${i}`} day={day} />);
       }
-      data-range-start={modifiers.range_start}
-      data-range-end={modifiers.range_end}
-      data-range-middle={modifiers.range_middle}
-      className={cn(
-        "data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-ring/50 flex aspect-square h-auto w-full min-w-[--cell-size] flex-col gap-1 font-normal leading-none data-[range-end=true]:rounded-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-[3px] [&>span]:text-xs [&>span]:opacity-70",
-        defaultClassNames.day,
-        className
-      )}
-      {...props}
-    />
-  )
-}
+    }
+  }
 
-export { Calendar, CalendarDayButton }
+  return (
+    <div className="grid flex-grow grid-cols-7">
+      {days.map((day, index) => (
+        <div
+          key={index}
+          className={cn(
+            'relative aspect-square overflow-hidden border-t border-r',
+            index % 7 === 6 && 'border-r-0'
+          )}
+        >
+          {day}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export type CalendarDatePickerProps = {
+  className?: string;
+  children: ReactNode;
+};
+
+export const CalendarDatePicker = ({
+  className,
+  children,
+}: CalendarDatePickerProps) => (
+  <div className={cn('flex items-center gap-1', className)}>{children}</div>
+);
+
+export type CalendarMonthPickerProps = {
+  className?: string;
+};
+
+export const CalendarMonthPicker = ({
+  className,
+}: CalendarMonthPickerProps) => {
+  const { month, setMonth } = useCalendar();
+  const { locale } = useContext(CalendarContext);
+
+  return (
+    <Combobox
+      className={className}
+      value={month.toString()}
+      setValue={(value) =>
+        setMonth(Number.parseInt(value) as CalendarState['month'])
+      }
+      data={monthsForLocale(locale).map((month, index) => ({
+        value: index.toString(),
+        label: month,
+      }))}
+      labels={{
+        button: 'Select month',
+        empty: 'No month found',
+        search: 'Search month',
+      }}
+    />
+  );
+};
+
+export type CalendarYearPickerProps = {
+  className?: string;
+  start: number;
+  end: number;
+};
+
+export const CalendarYearPicker = ({
+  className,
+  start,
+  end,
+}: CalendarYearPickerProps) => {
+  const { year, setYear } = useCalendar();
+
+  return (
+    <Combobox
+      className={className}
+      value={year.toString()}
+      setValue={(value) => setYear(Number.parseInt(value))}
+      data={Array.from({ length: end - start + 1 }, (_, i) => ({
+        value: (start + i).toString(),
+        label: (start + i).toString(),
+      }))}
+      labels={{
+        button: 'Select year',
+        empty: 'No year found',
+        search: 'Search year',
+      }}
+    />
+  );
+};
+
+export type CalendarDatePaginationProps = {
+  className?: string;
+};
+
+export const CalendarDatePagination = ({
+  className,
+}: CalendarDatePaginationProps) => {
+  const { month, year, setMonth, setYear } = useCalendar();
+
+  const handlePreviousMonth = () => {
+    if (month === 0) {
+      setMonth(11);
+      setYear(year - 1);
+    } else {
+      setMonth((month - 1) as CalendarState['month']);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (month === 11) {
+      setMonth(0);
+      setYear(year + 1);
+    } else {
+      setMonth((month + 1) as CalendarState['month']);
+    }
+  };
+
+  return (
+    <div className={cn('flex items-center gap-2', className)}>
+      <Button onClick={() => handlePreviousMonth()} variant="ghost" size="icon">
+        <ChevronLeftIcon size={16} />
+      </Button>
+      <Button onClick={() => handleNextMonth()} variant="ghost" size="icon">
+        <ChevronRightIcon size={16} />
+      </Button>
+    </div>
+  );
+};
+
+export type CalendarDateProps = {
+  children: ReactNode;
+};
+
+export const CalendarDate = ({ children }: CalendarDateProps) => (
+  <div className="flex items-center justify-between p-3">{children}</div>
+);
+
+export type CalendarHeaderProps = {
+  className?: string;
+};
+
+export const CalendarHeader = ({ className }: CalendarHeaderProps) => {
+  const { locale, startDay } = useContext(CalendarContext);
+
+  return (
+    <div className={cn('grid flex-grow grid-cols-7', className)}>
+      {daysForLocale(locale, startDay).map((day) => (
+        <div key={day} className="p-3 text-right text-muted-foreground text-xs">
+          {day}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export type CalendarItemProps = {
+  feature: Feature;
+  className?: string;
+};
+
+export const CalendarItem = ({ feature, className }: CalendarItemProps) => (
+  <div className={cn('flex items-center gap-2', className)} key={feature.id}>
+    <div
+      className="h-2 w-2 shrink-0 rounded-full"
+      style={{
+        backgroundColor: feature.status.color,
+      }}
+    />
+    <span className="truncate">{feature.name}</span>
+  </div>
+);
+
+export type CalendarProviderProps = {
+  locale?: Intl.LocalesArgument;
+  startDay?: number;
+  children: ReactNode;
+  className?: string;
+};
+
+export const CalendarProvider = ({
+  locale = 'en-US',
+  startDay = 0,
+  children,
+  className,
+}: CalendarProviderProps) => (
+  <CalendarContext.Provider value={{ locale, startDay }}>
+    <div className={cn('relative flex flex-col', className)}>{children}</div>
+  </CalendarContext.Provider>
+);

@@ -4,16 +4,14 @@ import { supabase } from '../../lib/supabase'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
-import { Card, CardHeader, CardContent } from '../ui/card'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog'
 import { VirtualCard } from '../ui/VirtualCard'
-import { Camera, CreditCard, Plus, Trash2, Edit, X, Brain, Maximize2 } from 'lucide-react'
+import { Camera, CreditCard, Plus, Trash2, Edit, X, Brain, FileText } from 'lucide-react'
 
 interface LoyaltyCard {
   id: string
@@ -213,77 +211,34 @@ export const CardsTab: React.FC<CardsTabProps> = ({
   return (
     <div className="space-y-6 pb-20">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Loyalty Cards</h2>
+        <h2 className="text-2xl font-bold">Loyalty Cards</h2>
       </div>
 
       {cards.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-4xl mb-4">💳</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <h3 className="text-lg font-semibold mb-2">
             No cards yet
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-muted-foreground mb-4">
             Scan or add your first loyalty card to get started
           </p>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((card) => (
-            <Card key={card.id} className="h-fit">
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <div className="flex items-center space-x-2">
-                  <CreditCard className="h-5 w-5 text-primary-600" />
-                  <h3 className="text-lg font-semibold truncate">{card.name}</h3>
-                </div>
-                <div className="flex space-x-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowFullscreenCard(card)}
-                    disabled={!isOnline}
-                    className="px-2"
-                    title="View fullscreen"
-                  >
-                    <Maximize2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editCard(card)}
-                    disabled={!isOnline}
-                    className="px-2"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => deleteCard(card.id)}
-                    disabled={!isOnline}
-                    className="text-red-600 hover:text-red-700 px-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <VirtualCard
-                  name={card.name}
-                  brand={card.brand}
-                  cardNumber={card.card_number}
-                  barcode={card.barcode}
-                  pointsBalance={card.points_balance}
-                  expiryDate={card.expiry_date}
-                  size="small"
-                  onClick={() => setShowFullscreenCard(card)}
-                />
-                {card.notes && (
-                  <div className="mt-3 p-2 bg-gray-50 rounded text-sm text-gray-600">
-                    <strong>Notes:</strong> {card.notes}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <div key={card.id} className="cursor-pointer">
+              <VirtualCard
+                name={card.name}
+                brand={card.brand}
+                cardNumber={card.card_number}
+                barcode={card.barcode}
+                pointsBalance={card.points_balance}
+                expiryDate={card.expiry_date}
+                size="small"
+                onClick={() => setShowFullscreenCard(card)}
+              />
+            </div>
           ))}
         </div>
       )}
@@ -614,31 +569,112 @@ export const CardsTab: React.FC<CardsTabProps> = ({
           if (!open) setShowFullscreenCard(null)
         }}
       >
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{showFullscreenCard?.name || ''}</DialogTitle>
+        <DialogContent className="max-w-md">
+          <DialogHeader className="text-center pb-0">
+            <DialogTitle className="text-xl font-semibold">{showFullscreenCard?.name || ''}</DialogTitle>
           </DialogHeader>
-        {showFullscreenCard && (
-          <div className="space-y-4">
-            <VirtualCard
-              name={showFullscreenCard.name}
-              brand={showFullscreenCard.brand}
-              cardNumber={showFullscreenCard.card_number}
-              barcode={showFullscreenCard.barcode}
-              pointsBalance={showFullscreenCard.points_balance}
-              expiryDate={showFullscreenCard.expiry_date}
-              size="large"
-            />
-            <div className="text-center text-sm text-gray-600">
-              <p>Show this card at checkout to earn points</p>
+          {showFullscreenCard && (
+            <div className="space-y-6">
+
+              {/* Card Display */}
+              <div className="mb-6">
+                <VirtualCard
+                  name={showFullscreenCard.name}
+                  brand={showFullscreenCard.brand}
+                  cardNumber={showFullscreenCard.card_number}
+                  barcode={showFullscreenCard.barcode}
+                  pointsBalance={showFullscreenCard.points_balance}
+                  expiryDate={showFullscreenCard.expiry_date}
+                  size="large"
+                />
+              </div>
+
+              {/* Management Section */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-4">Gestisci</h3>
+                <div className="space-y-0 border border-border rounded-lg overflow-hidden">
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      editCard(showFullscreenCard)
+                      setShowFullscreenCard(null)
+                    }}
+                    className="w-full flex items-center justify-between py-4 px-4 h-auto rounded-none border-b border-border hover:bg-muted transition-colors"
+                    disabled={!isOnline}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Edit className="h-5 w-5" />
+                      <span className="text-base">Modifica carta</span>
+                    </div>
+                    <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setShowFullscreenCard(null)
+                      setShowScanModal(true)
+                    }}
+                    className="w-full flex items-center justify-between py-4 px-4 h-auto rounded-none border-b border-border hover:bg-muted transition-colors"
+                    disabled={!isOnline}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Camera className="h-5 w-5" />
+                      <span className="text-base">Foto</span>
+                    </div>
+                    <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    className="w-full flex items-center justify-between py-4 px-4 h-auto rounded-none border-b border-border hover:bg-muted transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5" />
+                      <span className="text-base">Nota</span>
+                    </div>
+                    <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      if (confirm('Sei sicuro di voler eliminare questa carta?')) {
+                        deleteCard(showFullscreenCard.id)
+                        setShowFullscreenCard(null)
+                      }
+                    }}
+                    className="w-full flex items-center justify-between py-4 px-4 h-auto rounded-none text-destructive hover:bg-destructive/10 transition-colors"
+                    disabled={!isOnline}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Trash2 className="h-5 w-5" />
+                      <span className="text-base">Elimina carta</span>
+                    </div>
+                    <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Button>
+                </div>
+              </div>
+
               {showFullscreenCard.notes && (
-                <p className="mt-2 p-3 bg-blue-50 rounded-lg text-blue-800">
-                  <strong>Notes:</strong> {showFullscreenCard.notes}
-                </p>
+                <div className="mb-6">
+                  <div className="bg-muted rounded-lg p-4">
+                    <p className="text-sm text-muted-foreground">
+                      <strong>Note:</strong> {showFullscreenCard.notes}
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
-          </div>
-        )}
+          )}
         </DialogContent>
       </Dialog>
 

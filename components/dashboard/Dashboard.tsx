@@ -326,54 +326,53 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Family Selector Widget */}
       <div className="px-6 mb-8">
-        <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border-white/20 shadow-lg">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-600 rounded-xl flex items-center justify-center">
-                  <Users className="h-6 w-6 text-white" />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border-white/20 shadow-lg cursor-pointer hover:shadow-xl transition-shadow duration-200">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-600 rounded-xl flex items-center justify-center">
+                      <Users className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-lg">{group.name}</div>
+                      <div className="text-sm text-muted-foreground">Current Family</div>
+                    </div>
+                  </div>
+                  
+                  {allGroups.length > 1 && (
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  )}
                 </div>
-                <div>
-                  <div className="font-semibold text-lg">{group.name}</div>
-                  <div className="text-sm text-muted-foreground">Current Family</div>
-                </div>
-              </div>
-              
-              {allGroups.length > 1 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-1">
-                      Switch
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Select Family</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {allGroups.map((familyGroup) => (
-                      <DropdownMenuItem 
-                        key={familyGroup.id}
-                        onClick={() => handleGroupSwitch(familyGroup)}
-                        disabled={familyGroup.id === group.id}
-                      >
-                        <Users className="mr-2 h-4 w-4" />
-                        {familyGroup.name}
-                        {familyGroup.id === group.id && (
-                          <Badge variant="secondary" className="ml-auto">Current</Badge>
-                        )}
-                      </DropdownMenuItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={onLeaveGroup}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Manage Families
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </DropdownMenuTrigger>
+          
+          {allGroups.length > 1 && (
+            <DropdownMenuContent align="center" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+              {allGroups.map((familyGroup) => (
+                <DropdownMenuItem 
+                  key={familyGroup.id}
+                  onClick={() => handleGroupSwitch(familyGroup)}
+                  disabled={familyGroup.id === group.id}
+                  className={cn(
+                    "cursor-pointer",
+                    familyGroup.id === group.id && "bg-primary text-primary-foreground font-medium"
+                  )}
+                >
+                  <Users className="mr-2 h-4 w-4" />
+                  {familyGroup.name}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onLeaveGroup}>
+                <Plus className="mr-2 h-4 w-4" />
+                Manage Families
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          )}
+        </DropdownMenu>
       </div>
 
       {/* Offline Banner */}
@@ -388,34 +387,36 @@ export const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {/* App Icons */}
-      <div className="px-6">
-        <div className="grid grid-cols-4 gap-6 max-w-sm mx-auto">
+      <div className="px-6 py-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 sm:gap-8 md:gap-10 max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl mx-auto">
           {apps.map((app) => (
-            <div key={app.id} className="relative">
+            <div key={app.id} className="relative flex flex-col items-center">
               <button
                 onClick={() => setCurrentView(app.id)}
                 disabled={!isOnline}
-                className="group relative transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group relative transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center"
               >
-                {/* App Icon */}
-                <div className={`w-16 h-16 bg-gradient-to-br ${app.color} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 group-active:scale-95 transition-transform duration-200`}>
-                  <app.icon className="h-8 w-8 text-white" />
+                {/* App Icon Container */}
+                <div className="relative">
+                  <div className={`w-20 h-20 bg-gradient-to-br ${app.color} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 group-active:scale-95 transition-transform duration-200`}>
+                    <app.icon className="h-10 w-10 text-white" />
+                  </div>
+                  
+                  {/* Notification Badge */}
+                  {app.count > 0 && (
+                    <div className="absolute -top-2 -right-2 min-w-[22px] h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg px-1 z-10">
+                      {app.count > 99 ? '99+' : app.count}
+                    </div>
+                  )}
                 </div>
                 
                 {/* App Name */}
-                <div className="text-center mt-2">
-                  <div className="text-xs font-medium text-foreground/90 leading-tight">
+                <div className="text-center mt-3">
+                  <div className="text-sm font-medium text-foreground/90 leading-tight">
                     {app.name}
                   </div>
                 </div>
               </button>
-              
-              {/* Notification Badge */}
-              {app.count > 0 && (
-                <div className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg px-1">
-                  {app.count > 99 ? '99+' : app.count}
-                </div>
-              )}
             </div>
           ))}
         </div>

@@ -49,28 +49,33 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       {/* Theme switcher in top-right corner */}
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-6 right-6 z-10">
         <ThemeSwitcher size="sm" showLabel />
       </div>
       
-      <div className="w-full max-w-sm p-4">
-        <Card>
-          <CardHeader className="space-y-1">
-            {/* Header */}
-            <div className="text-center mb-2">
-              <h1 className="text-3xl font-bold mb-2">
-                👨‍👩‍👧‍👦 Family OS
-              </h1>
-              <CardDescription>Your family's digital home</CardDescription>
+      <div className="w-full max-w-md p-6">
+        <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border-white/20 shadow-xl">
+          <CardHeader className="space-y-4 pb-6">
+            {/* Logo/Icon */}
+            <div className="text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <span className="text-3xl">👨‍👩‍👧‍👦</span>
+              </div>
+              <CardTitle className="text-3xl font-bold mb-2">
+                Family OS
+              </CardTitle>
+              <CardDescription className="text-base">
+                Your family's digital home
+              </CardDescription>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -78,11 +83,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   placeholder="Enter your email"
+                  className="h-12 text-base"
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-sm font-medium">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -90,6 +96,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   placeholder="Enter your password"
+                  className="h-12 text-base"
                 />
                 {isSignUp && (
                   <p className="text-sm text-muted-foreground">
@@ -104,11 +111,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                 </Alert>
               )}
               
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <Button 
                   type="submit" 
-                  className="w-full"
+                  className="w-full h-12 text-base bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
                   disabled={isLoading}
+                  size="lg"
                 >
                   {isLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
                 </Button>
@@ -116,11 +124,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="w-full"
+                  className="w-full h-12 text-base"
                   onClick={() => {
                     setIsSignUp(!isSignUp)
                     setError('')
                   }}
+                  size="lg"
                 >
                   {isSignUp 
                     ? 'Already have an account? Sign In' 

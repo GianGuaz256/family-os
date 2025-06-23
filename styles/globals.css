@@ -12,9 +12,9 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 20%;
     
-    /* Primary - soft purple/pink */
-    --primary: 307 65% 85%;
-    --primary-foreground: 302 35% 35%;
+    /* Primary - pastel purple */
+    --primary: 270 60% 88%;
+    --primary-foreground: 270 35% 35%;
     
     /* Secondary - soft peach */
     --secondary: 10 60% 89%;
@@ -47,7 +47,7 @@
     /* Borders and inputs */
     --border: 248 5% 90%;
     --input: 248 5% 90%;
-    --ring: 307 65% 85%;
+    --ring: 270 60% 88%;
     
     /* Updated radius for modern rounded look */
     --radius: 2rem;
@@ -71,8 +71,8 @@
     --card-foreground: 0 0% 92%;
     --popover: 0 0% 8%;
     --popover-foreground: 0 0% 92%;
-    --primary: 307 45% 65%;
-    --primary-foreground: 302 15% 85%;
+    --primary: 270 45% 75%;
+    --primary-foreground: 270 15% 85%;
     --secondary: 10 40% 69%;
     --secondary-foreground: 17 25% 80%;
     --accent: 164 55% 70%;
@@ -83,7 +83,7 @@
     --destructive-foreground: 28 50% 90%;
     --border: 248 15% 20%;
     --input: 248 15% 20%;
-    --ring: 307 45% 65%;
+    --ring: 270 45% 75%;
   }
 }
 
@@ -234,6 +234,74 @@
   
   .network-status.offline {
     @apply bg-destructive text-destructive-foreground;
+  }
+
+  /* Dialog modals responsive styles */
+  [data-radix-dialog-content] {
+    max-width: calc(100vw - 2rem) !important;
+    max-height: calc(100vh - 4rem) !important;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  
+  /* Ensure dialogs never exceed screen bounds on very small devices */
+  @media (max-width: 640px) {
+    [data-radix-dialog-content] {
+      max-width: calc(100vw - 1rem) !important;
+    }
+  }
+
+  /* Dialog content constraints */
+  [data-radix-dialog-content] > * {
+    max-width: 100%;
+    overflow-wrap: break-word;
+  }
+  
+  /* Specific handling for dialog content areas */
+  [data-radix-dialog-content] .space-y-4,
+  [data-radix-dialog-content] .space-y-2 {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  /* Images and cards inside dialogs */
+  [data-radix-dialog-content] img,
+  [data-radix-dialog-content] canvas,
+  [data-radix-dialog-content] video {
+    max-width: 100% !important;
+    height: auto !important;
+    object-fit: contain;
+  }
+  
+  /* Virtual cards and large components */
+  [data-radix-dialog-content] [class*="virtual-card"],
+  [data-radix-dialog-content] [class*="card-container"] {
+    max-width: 100% !important;
+    overflow: hidden;
+  }
+  
+  /* Webcam container in scan modal */
+  [data-radix-dialog-content] video {
+    max-width: 100% !important;
+    max-height: 60vh !important;
+  }
+
+  /* Barcode containers */
+  [data-radix-dialog-content] svg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+  
+  /* Card content areas - prevent text overflow */
+  [data-radix-dialog-content] .font-mono {
+    word-break: break-all;
+    overflow-wrap: break-word;
+  }
+  
+  /* Fullscreen card modal specific */
+  [data-radix-dialog-content] .text-center {
+    max-width: 100%;
+    overflow: hidden;
   }
 }
 

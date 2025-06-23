@@ -4,7 +4,6 @@ import { LoginForm } from '../components/auth/LoginForm'
 import { FamilyGroupSetup } from '../components/family/FamilyGroupSetup'
 import { Dashboard } from '../components/dashboard/Dashboard'
 import { supabase } from '../lib/supabase'
-import { Alert, AlertDescription } from '../components/ui/alert'
 import { Skeleton } from '../components/ui/skeleton'
 
 interface HomeProps {
@@ -107,16 +106,20 @@ export default function Home({ user, loading }: HomeProps) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="text-center space-y-4">
-          <div className="flex items-center space-x-4">
-            <Skeleton className="h-12 w-12 rounded-full" />
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-[250px]" />
-              <Skeleton className="h-4 w-[200px]" />
-            </div>
+        <div className="text-center space-y-6">
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
+            <span className="text-3xl">👨‍👩‍👧‍👦</span>
           </div>
-          <h1 className="text-2xl font-bold">Loading Family OS...</h1>
-          <p className="text-muted-foreground">Setting up your family space</p>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-4 justify-center">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-[250px]" />
+                <Skeleton className="h-4 w-[200px]" />
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold">Loading Family OS...</h1>
+            <p className="text-muted-foreground">Setting up your family space</p>
+          </div>
         </div>
       </div>
     )
@@ -130,33 +133,27 @@ export default function Home({ user, loading }: HomeProps) {
   if (isLoadingGroups && !selectedGroup && !showFamilyManagement) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <h1 className="text-2xl font-bold">Loading your families...</h1>
-          <p className="text-muted-foreground">Setting up your dashboard</p>
+        <div className="text-center space-y-6">
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold">Loading your families...</h1>
+            <p className="text-muted-foreground">Setting up your dashboard</p>
+          </div>
         </div>
       </div>
     )
   }
 
-  // Show family management only when explicitly requested or no groups exist
+  // Show family management screen
   if (showFamilyManagement) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        {/* Offline banner */}
-        {!isOnline && (
-          <Alert className="rounded-none border-x-0 border-t-0">
-            <AlertDescription className="text-center">
-              ⚠️ You're offline. Some features may be limited.
-            </AlertDescription>
-          </Alert>
-        )}
-        <FamilyGroupSetup 
-          user={user} 
-          onGroupJoined={handleGroupJoined}
-          isOnline={isOnline}
-        />
-      </div>
+      <FamilyGroupSetup 
+        user={user} 
+        onGroupJoined={handleGroupJoined}
+        isOnline={isOnline}
+      />
     )
   }
 
@@ -164,9 +161,14 @@ export default function Home({ user, loading }: HomeProps) {
   if (!selectedGroup) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold">No Family Selected</h1>
-          <p className="text-muted-foreground">Please create or join a family to continue</p>
+        <div className="text-center space-y-6">
+          <div className="w-20 h-20 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 rounded-2xl flex items-center justify-center mx-auto">
+            <span className="text-3xl opacity-50">👨‍👩‍👧‍👦</span>
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold">No Family Selected</h1>
+            <p className="text-muted-foreground">Please create or join a family to continue</p>
+          </div>
         </div>
       </div>
     )

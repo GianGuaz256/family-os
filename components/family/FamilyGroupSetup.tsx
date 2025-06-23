@@ -6,6 +6,7 @@ import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Card, CardContent } from '../ui/card'
 import { Alert, AlertDescription } from '../ui/alert'
+import { AppLayout } from '../ui/AppLayout'
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog'
-import { Home, Plus, Users } from 'lucide-react'
+import { Home, Plus, Users, Settings } from 'lucide-react'
 
 interface FamilyGroup {
   id: string
@@ -147,111 +148,154 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
     }
   }
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+  }
+
+  // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your families...</p>
+      <AppLayout 
+        user={user} 
+        title="Family Management"
+        showUserControls={true}
+        onLogout={handleLogout}
+        isOnline={isOnline}
+      >
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <h2 className="text-lg font-medium">Loading your families...</h2>
+            <p className="text-muted-foreground">Setting up your family space</p>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     )
   }
 
   return (
-    <div className="min-h-screen p-4 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">
+    <AppLayout 
+      user={user} 
+      title="Family Management"
+      showUserControls={true}
+      onLogout={handleLogout}
+      isOnline={isOnline}
+    >
+      <div className="p-6 max-w-6xl mx-auto">
+        {/* Welcome Section */}
+        <div className="text-center mb-12">
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <Users className="h-10 w-10 text-white" />
+          </div>
+          <h1 className="text-4xl font-bold mb-4">
             Welcome to Family OS
           </h1>
-          <p className="text-muted-foreground">
-            Choose a family to manage or create a new one
+          <p className="text-lg text-muted-foreground max-w-md mx-auto">
+            Choose a family to manage or create a new one to get started
           </p>
         </div>
 
         {error && (
-          <Alert variant="destructive" className="mb-6">
+          <Alert variant="destructive" className="mb-8 max-w-2xl mx-auto">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+        {/* Family Groups Grid */}
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-12">
           {groups.map((group) => (
-            <Card key={group.id} className="cursor-pointer hover:shadow-xl transition-all duration-200">
+            <Card key={group.id} className="group cursor-pointer hover:shadow-xl transition-all duration-300 bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border-white/20 shadow-lg">
               <CardContent className="p-6 text-center">
-                <Home className="h-12 w-12 mx-auto mb-4 text-primary" />
-                <h3 className="text-xl font-semibold mb-2">{group.name}</h3>
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200">
+                  <Home className="h-8 w-8 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold mb-3">{group.name}</h3>
                 <Button 
                   onClick={() => onGroupJoined(group)}
-                  className="w-full mb-2"
+                  className="w-full mb-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                  size="lg"
                   disabled={!isOnline}
                 >
                   Enter Family
                 </Button>
-                <p className="text-xs text-muted-foreground">
-                  Invite Code: {group.invite_code}
-                </p>
+                <div className="text-xs text-muted-foreground bg-slate-100 dark:bg-slate-700 rounded-full px-3 py-1">
+                  Code: {group.invite_code}
+                </div>
               </CardContent>
             </Card>
           ))}
           
           {groups.length === 0 && (
-            <div className="col-span-full text-center py-8">
-              <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">
+            <div className="col-span-full text-center py-16">
+              <div className="w-24 h-24 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Users className="h-12 w-12 text-slate-500 dark:text-slate-400" />
+              </div>
+              <h3 className="text-2xl font-semibold mb-3">
                 No families yet
               </h3>
-              <p className="text-muted-foreground mb-4">
-                Create your first family or join an existing one to get started
+              <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                Create your first family or join an existing one to get started with Family OS
               </p>
             </div>
           )}
         </div>
 
-        <div className="flex gap-4 justify-center">
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
           <Button 
             onClick={() => setShowCreateModal(true)}
             disabled={!isOnline}
+            size="lg"
+            className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="h-5 w-5 mr-2" />
             Create New Family
           </Button>
           <Button 
-            variant="secondary" 
+            variant="outline" 
             onClick={() => setShowJoinModal(true)}
             disabled={!isOnline}
+            size="lg"
+            className="flex-1 border-2"
           >
-            <Users className="h-4 w-4 mr-2" />
+            <Users className="h-5 w-5 mr-2" />
             Join Family
           </Button>
         </div>
 
+        {/* Create Family Modal */}
         <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Create New Family</DialogTitle>
+              <DialogTitle className="text-xl">Create New Family</DialogTitle>
               <DialogDescription>
-                Give your family a name to get started
+                Give your family a name to get started. You'll be able to invite other members later.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-6 py-4">
               <div className="space-y-2">
-                <Label htmlFor="family-name">Family Name</Label>
+                <Label htmlFor="family-name" className="text-sm font-medium">Family Name</Label>
                 <Input
                   id="family-name"
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                   placeholder="The Smith Family"
+                  className="text-base"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      createGroup()
+                    }
+                  }}
                 />
               </div>
-              <div className="flex gap-2">
-                <Button onClick={createGroup} className="flex-1">
+              <div className="flex gap-3">
+                <Button onClick={createGroup} className="flex-1" size="lg">
                   Create Family
                 </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => setShowCreateModal(false)}
+                  size="lg"
                 >
                   Cancel
                 </Button>
@@ -260,31 +304,39 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
           </DialogContent>
         </Dialog>
 
+        {/* Join Family Modal */}
         <Dialog open={showJoinModal} onOpenChange={setShowJoinModal}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Join Family</DialogTitle>
+              <DialogTitle className="text-xl">Join Family</DialogTitle>
               <DialogDescription>
-                Enter the invite code shared by your family
+                Enter the invite code shared by your family member to join their family.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-6 py-4">
               <div className="space-y-2">
-                <Label htmlFor="invite-code">Invite Code</Label>
+                <Label htmlFor="invite-code" className="text-sm font-medium">Invite Code</Label>
                 <Input
                   id="invite-code"
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
                   placeholder="Enter invite code"
+                  className="text-base font-mono"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      joinGroup()
+                    }
+                  }}
                 />
               </div>
-              <div className="flex gap-2">
-                <Button onClick={joinGroup} className="flex-1">
+              <div className="flex gap-3">
+                <Button onClick={joinGroup} className="flex-1" size="lg">
                   Join Family
                 </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => setShowJoinModal(false)}
+                  size="lg"
                 >
                   Cancel
                 </Button>
@@ -293,6 +345,6 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </AppLayout>
   )
 } 

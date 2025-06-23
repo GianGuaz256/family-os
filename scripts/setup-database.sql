@@ -43,6 +43,12 @@ CREATE TABLE IF NOT EXISTS events (
   group_id UUID REFERENCES family_groups(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   date DATE NOT NULL,
+  end_date DATE, -- For date range events
+  event_type TEXT DEFAULT 'single' CHECK (event_type IN ('single', 'recurring', 'range')),
+  recurrence_pattern TEXT CHECK (recurrence_pattern IN ('daily', 'weekly', 'monthly', 'yearly') OR recurrence_pattern IS NULL),
+  recurrence_interval INTEGER DEFAULT 1, -- Every X days/weeks/months/years
+  recurrence_end_date DATE, -- When to stop recurring
+  description TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

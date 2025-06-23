@@ -27,17 +27,17 @@ export const VirtualCard: React.FC<VirtualCardProps> = ({
   
   const cardStyles = {
     small: {
-      container: 'w-full h-32',
+      container: 'w-full max-w-full h-32',
       text: 'text-xs',
       brandText: 'text-sm font-bold',
       numberText: 'text-xs font-mono',
       barcodeHeight: 20
     },
     large: {
-      container: 'w-full h-80',
-      text: 'text-lg',
-      brandText: 'text-3xl font-bold',
-      numberText: 'text-xl font-mono',
+      container: 'w-full max-w-full h-80 max-h-[60vh]',
+      text: 'text-base sm:text-lg',
+      brandText: 'text-xl sm:text-2xl md:text-3xl font-bold',
+      numberText: 'text-sm sm:text-lg md:text-xl font-mono',
       barcodeHeight: 60
     }
   }
@@ -71,26 +71,31 @@ export const VirtualCard: React.FC<VirtualCardProps> = ({
         </div>
 
         {/* Middle - Barcode */}
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center overflow-hidden">
           {displayNumber && (
-            <div className="text-center">
-              <Barcode
-                value={displayNumber}
-                height={styles.barcodeHeight}
-                width={size === 'large' ? 2 : 1}
-                fontSize={size === 'large' ? 14 : 10}
-                background="transparent"
-                lineColor="#000000"
-              />
+            <div className="text-center max-w-full">
+              <div className="overflow-hidden flex justify-center">
+                <Barcode
+                  value={displayNumber.replace(/\s/g, '')}
+                  height={styles.barcodeHeight}
+                  width={size === 'large' ? 1.5 : 1}
+                  fontSize={size === 'large' ? 12 : 8}
+                  background="transparent"
+                  lineColor="#000000"
+                  displayValue={true}
+                  textAlign="center"
+                  textPosition="bottom"
+                  textMargin={2}
+                  marginLeft={10}
+                  marginRight={10}
+                />
+              </div>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between items-end">
-          <div className={`${styles.numberText} text-gray-700`}>
-            {displayNumber}
-          </div>
+        <div className="flex justify-end items-end">
           {expiryDate && (
             <div className={`${styles.text} text-gray-500`}>
               Exp: {expiryDate}
