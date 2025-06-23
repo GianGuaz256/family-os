@@ -1,0 +1,250 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Base colors - converted from oklch to hsl */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 20%;
+    --card: 0 0% 98.5%;
+    --card-foreground: 0 0% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
+    
+    /* Primary - soft purple/pink */
+    --primary: 307 65% 85%;
+    --primary-foreground: 302 35% 35%;
+    
+    /* Secondary - soft peach */
+    --secondary: 10 60% 89%;
+    --secondary-foreground: 17 45% 40%;
+    
+    /* Accent - soft mint green */
+    --accent: 164 75% 90%;
+    --accent-foreground: 166 45% 35%;
+    
+    /* Muted tones */
+    --muted: 248 5% 92.5%;
+    --muted-foreground: 257 15% 55%;
+    
+    /* Info - soft blue */
+    --info: 207 70% 86%;
+    --info-foreground: 223 50% 40%;
+    
+    /* Success - soft green */
+    --success: 154 75% 87%;
+    --success-foreground: 150 60% 40%;
+    
+    /* Warning - soft yellow */
+    --warning: 66 70% 83%;
+    --warning-content: 38 75% 45%;
+    
+    /* Error/Destructive - soft red */
+    --destructive: 20 65% 80%;
+    --destructive-foreground: 28 70% 40%;
+    
+    /* Borders and inputs */
+    --border: 248 5% 90%;
+    --input: 248 5% 90%;
+    --ring: 307 65% 85%;
+    
+    /* Updated radius for modern rounded look */
+    --radius: 2rem;
+    
+    /* Additional pastel colors for variety */
+    --pastel-purple: 270 60% 88%;
+    --pastel-blue: 200 70% 85%;
+    --pastel-cyan: 180 65% 85%;
+    --pastel-teal: 160 60% 85%;
+    --pastel-lime: 100 65% 85%;
+    --pastel-yellow: 50 75% 85%;
+    --pastel-orange: 30 70% 85%;
+    --pastel-red: 0 65% 85%;
+    --pastel-pink: 330 70% 88%;
+  }
+
+  .dark {
+    --background: 0 0% 8%;
+    --foreground: 0 0% 92%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 92%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 92%;
+    --primary: 307 45% 65%;
+    --primary-foreground: 302 15% 85%;
+    --secondary: 10 40% 69%;
+    --secondary-foreground: 17 25% 80%;
+    --accent: 164 55% 70%;
+    --accent-foreground: 166 25% 85%;
+    --muted: 248 15% 15%;
+    --muted-foreground: 257 25% 65%;
+    --destructive: 20 45% 60%;
+    --destructive-foreground: 28 50% 90%;
+    --border: 248 15% 20%;
+    --input: 248 15% 20%;
+    --ring: 307 45% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    /* PWA: Ensure full viewport usage */
+    height: 100%;
+    width: 100%;
+    overflow-x: hidden;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    
+    /* PWA: Safe area support for iPhone X+ devices */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    
+    /* PWA: Prevent iOS bounce effect */
+    height: 100vh;
+    height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-x: hidden;
+    
+    /* PWA: Smooth scrolling for better mobile experience */
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* PWA: Ensure main content respects safe areas */
+  #__next {
+    min-height: 100vh;
+    min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+  
+  /* PWA: Fix for iOS address bar height changes */
+  @supports (-webkit-touch-callout: none) {
+    body {
+      min-height: -webkit-fill-available;
+    }
+  }
+}
+
+@layer components {
+  /* PWA: Safe area aware containers */
+  .safe-area-container {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  
+  .safe-area-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  
+  .safe-area-left {
+    padding-left: max(1rem, env(safe-area-inset-left));
+  }
+  
+  .safe-area-right {
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  /* Pastel card variants */
+  .card-pastel-purple {
+    @apply bg-[hsl(var(--pastel-purple))] border-[hsl(var(--pastel-purple))];
+  }
+  
+  .card-pastel-blue {
+    @apply bg-[hsl(var(--pastel-blue))] border-[hsl(var(--pastel-blue))];
+  }
+  
+  .card-pastel-cyan {
+    @apply bg-[hsl(var(--pastel-cyan))] border-[hsl(var(--pastel-cyan))];
+  }
+  
+  .card-pastel-teal {
+    @apply bg-[hsl(var(--pastel-teal))] border-[hsl(var(--pastel-teal))];
+  }
+  
+  .card-pastel-lime {
+    @apply bg-[hsl(var(--pastel-lime))] border-[hsl(var(--pastel-lime))];
+  }
+  
+  .card-pastel-yellow {
+    @apply bg-[hsl(var(--pastel-yellow))] border-[hsl(var(--pastel-yellow))];
+  }
+  
+  .card-pastel-orange {
+    @apply bg-[hsl(var(--pastel-orange))] border-[hsl(var(--pastel-orange))];
+  }
+  
+  .card-pastel-red {
+    @apply bg-[hsl(var(--pastel-red))] border-[hsl(var(--pastel-red))];
+  }
+  
+  .card-pastel-pink {
+    @apply bg-[hsl(var(--pastel-pink))] border-[hsl(var(--pastel-pink))];
+  }
+
+  /* Modern rounded components */
+  .modern-card {
+    @apply rounded-[2rem] border-2 shadow-sm backdrop-blur-sm;
+  }
+  
+  .modern-button {
+    @apply rounded-[2rem] border-2 px-6 py-3 font-medium transition-all duration-200;
+  }
+  
+  .modern-input {
+    @apply rounded-[2rem] border-2 px-4 py-3 backdrop-blur-sm;
+  }
+  
+  .modern-badge {
+    @apply rounded-[2rem] px-3 py-1 text-sm font-medium;
+  }
+
+  /* PWA: Offline indicator */
+  .offline-indicator {
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+    background-size: 400% 400%;
+    animation: gradient 3s ease infinite;
+  }
+  
+  /* PWA: Install prompt styles */
+  .install-prompt {
+    @apply fixed bottom-4 left-4 right-4 z-50 rounded-2xl bg-primary/90 backdrop-blur-sm p-4 text-primary-foreground shadow-lg transition-all duration-300;
+  }
+  
+  /* PWA: Network status indicator */
+  .network-status {
+    @apply fixed top-0 left-0 right-0 z-50 px-4 py-2 text-center text-sm font-medium transition-all duration-300;
+  }
+  
+  .network-status.online {
+    @apply bg-success text-success-foreground;
+  }
+  
+  .network-status.offline {
+    @apply bg-destructive text-destructive-foreground;
+  }
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+} 
