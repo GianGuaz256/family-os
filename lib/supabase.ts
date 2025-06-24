@@ -104,6 +104,13 @@ export type Database = {
           group_id: string
           title: string
           date: string
+          start_datetime?: string
+          end_datetime?: string
+          event_type: 'single' | 'recurring' | 'range'
+          recurrence_pattern?: 'daily' | 'weekly' | 'monthly' | 'yearly'
+          recurrence_interval?: number
+          recurrence_end_date?: string
+          description?: string
           created_at: string
         }
         Insert: {
@@ -111,6 +118,13 @@ export type Database = {
           group_id: string
           title: string
           date: string
+          start_datetime?: string
+          end_datetime?: string
+          event_type?: 'single' | 'recurring' | 'range'
+          recurrence_pattern?: 'daily' | 'weekly' | 'monthly' | 'yearly'
+          recurrence_interval?: number
+          recurrence_end_date?: string
+          description?: string
           created_at?: string
         }
         Update: {
@@ -118,6 +132,13 @@ export type Database = {
           group_id?: string
           title?: string
           date?: string
+          start_datetime?: string
+          end_datetime?: string
+          event_type?: 'single' | 'recurring' | 'range'
+          recurrence_pattern?: 'daily' | 'weekly' | 'monthly' | 'yearly'
+          recurrence_interval?: number
+          recurrence_end_date?: string
+          description?: string
           created_at?: string
         }
       }
