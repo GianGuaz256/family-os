@@ -114,7 +114,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Family Documents</h2>
+        <h2 className="text-2xl font-bold">Documents</h2>
       </div>
 
       {documents.length === 0 ? (

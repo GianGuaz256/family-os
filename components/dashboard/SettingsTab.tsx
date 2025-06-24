@@ -6,7 +6,6 @@ import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Card, CardHeader, CardContent, CardTitle } from '../ui/card'
 import { Alert, AlertDescription } from '../ui/alert'
-import { Separator } from '../ui/separator'
 import { 
   User as UserIcon, 
   Mail, 

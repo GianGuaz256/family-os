@@ -573,7 +573,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => deleteEvent(event.id.split('-')[0])}
+                  onClick={() => deleteEvent(event.id)}
                   disabled={!isOnline}
                   className="text-gray-600 hover:text-red-700 hover:bg-red-50 p-1 h-auto"
                 >
@@ -672,7 +672,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => deleteEvent(event.id.split('-')[0])}
+                onClick={() => deleteEvent(event.id)}
                 disabled={!isOnline}
                 className={`${isUpcomingEvent ? 'text-gray-600 hover:text-red-700 hover:bg-red-50' : 'text-gray-500 hover:text-red-600 hover:bg-red-50'} p-2 h-auto`}
               >
@@ -908,7 +908,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   return (
     <div className="space-y-6 min-w-0">
       <div className="flex justify-between items-center gap-4">
-        <h2 className="text-xl sm:text-2xl font-bold truncate">Family Events</h2>
+        <h2 className="text-xl sm:text-2xl font-bold truncate">Events</h2>
         <div className="inline-flex rounded-lg border bg-muted p-1 shrink-0">
           <button
             onClick={() => setViewMode('list')}
