@@ -26,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog'
-import { Plus, Calendar as CalendarIcon, Clock, Trash2, Grid, List, Repeat, CalendarDays, FileText, Edit, MapPin } from 'lucide-react'
+import { Plus, Calendar as CalendarIcon, Clock, Trash2, Grid, List, Repeat, CalendarDays, FileText, Edit, MapPin, Filter, DollarSign } from 'lucide-react'
 // Removed date-fns dependency - using native Date methods instead
 
 interface Event {
@@ -43,8 +43,24 @@ interface Event {
   created_at: string
 }
 
+interface Subscription {
+  id: string
+  group_id: string
+  title: string
+  provider?: string
+  cost: number
+  currency: string
+  billing_cycle: 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+  next_payment_date: string
+  category?: string
+  payer_id?: string
+  is_active: boolean
+  created_at: string
+}
+
 interface EventsTabProps {
   events: Event[]
+  subscriptions?: Subscription[]
   groupId: string
   onUpdate: () => void
   isOnline: boolean
@@ -52,6 +68,7 @@ interface EventsTabProps {
 
 export const EventsTab: React.FC<EventsTabProps> = ({
   events,
+  subscriptions = [],
   groupId,
   onUpdate,
   isOnline
@@ -81,6 +98,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [quickEventTitle, setQuickEventTitle] = useState('')
+  const [eventFilter, setEventFilter] = useState<'all' | 'events' | 'subscriptions'>('all')
 
   // Save view mode to localStorage whenever it changes
   useEffect(() => {
@@ -387,8 +405,52 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     return instances
   }
 
+  // Helper function to format currency
+  const formatCurrency = (amount: number, currency: string) => {
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currency
+      }).format(amount)
+    } catch {
+      return `${currency} ${amount.toFixed(2)}`
+    }
+  }
+
+  // Convert subscriptions to event-like objects for unified display
+  const subscriptionEvents = subscriptions
+    .filter(sub => sub.is_active)
+    .map(sub => ({
+      ...sub,
+      id: `subscription-${sub.id}`,
+      title: `💳 ${sub.title}${sub.cost ? ` - ${formatCurrency(sub.cost, sub.currency)}` : ''}`,
+      date: sub.next_payment_date,
+      start_datetime: undefined,
+      end_datetime: undefined,
+      event_type: 'subscription' as const,
+      recurrence_pattern: undefined,
+      recurrence_interval: undefined,
+      recurrence_end_date: undefined,
+      description: `Subscription payment - ${sub.billing_cycle}${sub.provider ? ` | ${sub.provider}` : ''}`,
+      isSubscription: true
+    }))
+
   // Expand all events to include recurring instances
   const expandedEvents = events.flatMap(event => generateRecurringInstances(event))
+
+  // Combine events and subscriptions based on filter
+  const getFilteredEvents = () => {
+    switch (eventFilter) {
+      case 'events':
+        return expandedEvents
+      case 'subscriptions':
+        return subscriptionEvents as any[]
+      default:
+        return [...expandedEvents, ...subscriptionEvents] as any[]
+    }
+  }
+
+  const allDisplayEvents = getFilteredEvents()
 
   const formatDate = (dateString: string) => {
     try {
@@ -485,7 +547,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     }
   }
 
-  const sortedEvents = expandedEvents.sort((a, b) => {
+  const sortedEvents = allDisplayEvents.sort((a, b) => {
     try {
       return new Date(a.date).getTime() - new Date(b.date).getTime()
     } catch {
@@ -501,7 +563,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
 
   // Get events for a specific date
   const getEventsForDate = (date: Date) => {
-    return expandedEvents.filter(event => {
+    return allDisplayEvents.filter(event => {
       const eventDate = new Date(event.date)
       return eventDate.getFullYear() === date.getFullYear() &&
              eventDate.getMonth() === date.getMonth() &&
@@ -514,7 +576,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
 
   // Reusable Event Card Component
   const EventCard: React.FC<{
-    event: Event & { isInstance?: boolean }
+    event: any // Using any to handle both events and subscriptions
     variant?: 'list' | 'compact'
     showDate?: boolean
   }> = ({ event, variant = 'list', showDate = false }) => {
@@ -522,6 +584,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     const TypeIcon = typeInfo.icon
     const timeDisplay = getEventTimeDisplay(event)
     const isUpcomingEvent = isUpcoming(event.date)
+    const isSubscription = event.isSubscription || event.event_type === 'subscription'
     
     if (variant === 'compact') {
       return (
@@ -561,24 +624,32 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                 </div>
               </div>
               <div className="flex items-center gap-1 ml-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openEditModal(event)}
-                  disabled={!isOnline}
-                  className="text-gray-600 hover:text-blue-700 hover:bg-blue-50 p-1 h-auto"
-                >
-                  <Edit className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteEvent(event.id)}
-                  disabled={!isOnline}
-                  className="text-gray-600 hover:text-red-700 hover:bg-red-50 p-1 h-auto"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                {!isSubscription ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEditModal(event)}
+                      disabled={!isOnline}
+                      className="text-gray-600 hover:text-blue-700 hover:bg-blue-50 p-1 h-auto"
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteEvent(event.id)}
+                      disabled={!isOnline}
+                      className="text-gray-600 hover:text-red-700 hover:bg-red-50 p-1 h-auto"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </>
+                ) : (
+                  <div className="text-xs text-muted-foreground px-2">
+                    Subscription
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
@@ -660,24 +731,32 @@ export const EventsTab: React.FC<EventsTabProps> = ({
             
             {/* Action Buttons */}
             <div className="flex items-center gap-1 ml-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => openEditModal(event)}
-                disabled={!isOnline}
-                className={`${isUpcomingEvent ? 'text-gray-600 hover:text-blue-700 hover:bg-blue-50' : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'} p-2 h-auto`}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => deleteEvent(event.id)}
-                disabled={!isOnline}
-                className={`${isUpcomingEvent ? 'text-gray-600 hover:text-red-700 hover:bg-red-50' : 'text-gray-500 hover:text-red-600 hover:bg-red-50'} p-2 h-auto`}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              {!isSubscription ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEditModal(event)}
+                    disabled={!isOnline}
+                    className={`${isUpcomingEvent ? 'text-gray-600 hover:text-blue-700 hover:bg-blue-50' : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'} p-2 h-auto`}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteEvent(event.id)}
+                    disabled={!isOnline}
+                    className={`${isUpcomingEvent ? 'text-gray-600 hover:text-red-700 hover:bg-red-50' : 'text-gray-500 hover:text-red-600 hover:bg-red-50'} p-2 h-auto`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : (
+                <div className="text-sm text-muted-foreground font-medium bg-purple-50 dark:bg-purple-900/20 px-3 py-1 rounded-full">
+                  💳 Subscription
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -775,7 +854,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
 
   // Convert events to calendar features format
   const convertEventsToFeatures = (): Feature[] => {
-    return expandedEvents.map((event) => {
+    return allDisplayEvents.map((event) => {
       const typeInfo = getEventTypeInfo(event)
       return {
         id: event.id,
@@ -796,11 +875,11 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   // Get earliest and latest years from events for year picker
   const getYearRange = () => {
     const currentYear = new Date().getFullYear()
-    if (expandedEvents.length === 0) {
+    if (allDisplayEvents.length === 0) {
       return { start: currentYear - 1, end: currentYear + 2 }
     }
     
-    const eventYears = expandedEvents.map(event => new Date(event.date).getFullYear())
+    const eventYears = allDisplayEvents.map(event => new Date(event.date).getFullYear())
     const minYear = Math.min(...eventYears, currentYear - 1)
     const maxYear = Math.max(...eventYears, currentYear + 2)
     
@@ -929,6 +1008,46 @@ export const EventsTab: React.FC<EventsTabProps> = ({
             }`}
           >
             <CalendarIcon className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Filter Section */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium text-muted-foreground">Filter:</span>
+        <div className="inline-flex rounded-lg border bg-muted p-1">
+          <button
+            onClick={() => setEventFilter('all')}
+            className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+              eventFilter === 'all'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-muted-foreground/10'
+            }`}
+          >
+            All ({allDisplayEvents.length})
+          </button>
+          <button
+            onClick={() => setEventFilter('events')}
+            className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+              eventFilter === 'events'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-muted-foreground/10'
+            }`}
+          >
+            <CalendarIcon className="h-3 w-3 mr-1" />
+            Events ({expandedEvents.length})
+          </button>
+          <button
+            onClick={() => setEventFilter('subscriptions')}
+            className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+              eventFilter === 'subscriptions'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-muted-foreground/10'
+            }`}
+          >
+            <DollarSign className="h-3 w-3 mr-1" />
+            Subscriptions ({subscriptionEvents.length})
           </button>
         </div>
       </div>

@@ -7,12 +7,14 @@ import { ListsTab } from './ListsTab'
 import { DocumentsTab } from './DocumentsTab'
 import { EventsTab } from './EventsTab'
 import { CardsTab } from './CardsTab'
+import { SubscriptionsTab } from './SubscriptionsTab'
 import { SettingsTab } from './SettingsTab'
 import { 
   List, 
   FileText, 
   Calendar, 
   CreditCard, 
+  DollarSign,
   LogOut, 
   ArrowLeft, 
   ChevronDown,
@@ -61,7 +63,7 @@ interface DashboardProps {
   isOnline: boolean
 }
 
-type AppView = 'home' | 'lists' | 'documents' | 'events' | 'cards' | 'settings'
+type AppView = 'home' | 'lists' | 'documents' | 'events' | 'cards' | 'subscriptions' | 'settings'
 
 export const Dashboard: React.FC<DashboardProps> = ({
   user,
@@ -76,6 +78,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [documents, setDocuments] = useState<any[]>([])
   const [events, setEvents] = useState<any[]>([])
   const [cards, setCards] = useState<any[]>([])
+  const [subscriptions, setSubscriptions] = useState<any[]>([])
   const [allGroups, setAllGroups] = useState<FamilyGroup[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [isSwitchingFamily, setIsSwitchingFamily] = useState(false)
@@ -135,11 +138,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
         .select('*')
         .eq('group_id', group.id)
         .order('created_at', { ascending: false })
+      
+      // Fetch subscriptions
+      const { data: subscriptionsData } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('group_id', group.id)
+        .order('created_at', { ascending: false })
 
       setLists(listsData || [])
       setDocuments(documentsData || [])
       setEvents(eventsData || [])
       setCards(cardsData || [])
+      setSubscriptions(subscriptionsData || [])
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -176,8 +187,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }
 
   const setupRealtimeSubscriptions = () => {
+    // Remove any existing channel with the same name first
+    const channelName = `family-updates-${group.id}`
+    const existingChannel = supabase.getChannels().find(ch => ch.topic === `realtime:${channelName}`)
+    if (existingChannel) {
+      supabase.removeChannel(existingChannel)
+    }
+
     const channel = supabase
-      .channel(`family-updates-${group.id}`)
+      .channel(channelName)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'lists', filter: `group_id=eq.${group.id}` },
         () => fetchData()
@@ -192,6 +210,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       )
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'cards', filter: `group_id=eq.${group.id}` },
+        () => fetchData()
+      )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'subscriptions', filter: `group_id=eq.${group.id}` },
         () => fetchData()
       )
       .subscribe()
@@ -266,6 +288,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
       color: 'from-orange-400 to-orange-600',
       count: cards.length,
       description: 'Loyalty Cards'
+    },
+    {
+      id: 'subscriptions' as const,
+      name: 'Subscriptions',
+      icon: DollarSign,
+      color: 'from-pink-400 to-pink-600',
+      count: subscriptions.length,
+      description: 'Family Plans'
     }
   ]
 
@@ -347,6 +377,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
           }
         )
         break
+      case 'subscriptions':
+        actions.push({
+          icon: Plus,
+          label: 'Add Subscription',
+          onClick: () => {
+            const event = new CustomEvent('openCreateModal', { detail: { type: 'subscription' } })
+            window.dispatchEvent(event)
+          },
+          disabled: !isOnline
+        })
+        break
     }
     
     return actions
@@ -375,7 +416,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           )}
           {currentView === 'events' && (
             <EventsTab 
-              events={events} 
+              events={events}
+              subscriptions={subscriptions}
               groupId={group.id} 
               onUpdate={fetchData}
               isOnline={isOnline}
@@ -387,6 +429,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
               groupId={group.id} 
               onUpdate={fetchData}
               isOnline={isOnline}
+            />
+          )}
+          {currentView === 'subscriptions' && (
+            <SubscriptionsTab 
+              subscriptions={subscriptions} 
+              groupId={group.id} 
+              onUpdate={fetchData}
+              isOnline={isOnline}
+              currentUser={user}
             />
           )}
           {currentView === 'settings' && (

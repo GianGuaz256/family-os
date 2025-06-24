@@ -5,7 +5,9 @@
 - [] Preparare docker per il deploy
 - [x] Creare degli user admin per creare le famiglie e per invitare i membri. L'admin può condividere un codice come invito ai membri
 - [x] Negli events aggiungere anche le subscription di famiglia
-- [] Aggiungere somma delle subscription totali e per categoria
+- [x] Aggiungere somma delle subscription totali e per categoria
+- [x] Creare tabella subscriptions separata per gestire meglio i dati
+- [x] Aggiungere dashboard dedicato per subscriptions con analytics
 - [] Documents da salvare direttamente su Supabase (pdf, doc, etc)
 - [] Nella app events aggiungere la logica per selezionare la data nel calendario e vedere gli eventi di quella data e anche crearne in quella data direttamente
 - [] Fixare la logica del recurring event creation senza la data di fine ripetizione (stop repeating) obbligatorio
