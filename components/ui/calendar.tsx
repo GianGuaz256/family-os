@@ -243,7 +243,11 @@ export const CalendarBody = ({ features, children, onDateSelect }: CalendarBodyP
       >
         <span className="text-left text-sm font-medium">{day}</span>
         <div className="flex-1 flex flex-col gap-0.5 min-w-0 overflow-hidden">
-          {featuresForDay.slice(0, 2).map((feature) => children({ feature }))}
+          {featuresForDay.slice(0, 2).map((feature) => (
+            <div key={feature.id}>
+              {children({ feature })}
+            </div>
+          ))}
         </div>
         {featuresForDay.length > 2 && (
           <span className="block text-muted-foreground text-xs leading-none mt-auto">

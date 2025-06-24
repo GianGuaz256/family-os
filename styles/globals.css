@@ -242,7 +242,7 @@
   
   /* PWA: Install prompt styles */
   .install-prompt {
-    @apply fixed bottom-4 left-4 right-4 z-50 rounded-2xl bg-primary/90 backdrop-blur-sm p-4 text-primary-foreground shadow-lg transition-all duration-300;
+    @apply fixed top-4 left-4 right-4 z-50 rounded-2xl bg-primary/90 backdrop-blur-sm p-4 text-primary-foreground shadow-lg transition-all duration-300;
   }
   
   /* PWA: Network status indicator */

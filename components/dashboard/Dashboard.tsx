@@ -81,14 +81,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [isSwitchingFamily, setIsSwitchingFamily] = useState(false)
 
   useEffect(() => {
-    try {
-      if (isOnline) {
-        fetchData()
-        fetchAllGroups()
-        setupRealtimeSubscriptions()
+    let cleanup: (() => void) | undefined
+
+    const initialize = async () => {
+      try {
+        if (isOnline) {
+          await fetchData()
+          await fetchAllGroups()
+          cleanup = setupRealtimeSubscriptions()
+        }
+      } catch (error) {
+        console.error('Dashboard useEffect error:', error)
       }
-    } catch (error) {
-      console.error('Dashboard useEffect error:', error)
+    }
+
+    initialize()
+
+    return () => {
+      if (cleanup) {
+        cleanup()
+      }
     }
   }, [group.id, isOnline])
 
@@ -165,7 +177,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const setupRealtimeSubscriptions = () => {
     const channel = supabase
-      .channel('family-updates')
+      .channel(`family-updates-${group.id}`)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'lists', filter: `group_id=eq.${group.id}` },
         () => fetchData()
