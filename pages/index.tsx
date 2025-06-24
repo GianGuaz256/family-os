@@ -16,6 +16,7 @@ interface FamilyGroup {
   name: string
   owner_id: string
   invite_code: string
+  icon?: string
 }
 
 export default function Home({ user, loading }: HomeProps) {
@@ -57,7 +58,8 @@ export default function Home({ user, loading }: HomeProps) {
             id,
             name,
             owner_id,
-            invite_code
+            invite_code,
+            icon
           )
         `)
         .eq('user_id', user.id)

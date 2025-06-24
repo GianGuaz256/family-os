@@ -20,13 +20,20 @@ import {
   Users,
   Plus,
   Settings,
-  Camera
+  Camera,
+  Heart,
+  Star,
+  TreePine,
+  Flower,
+  Sun,
+  Moon
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import { Alert, AlertDescription } from '../ui/alert'
 import { Avatar, AvatarFallback } from '../ui/avatar'
 import { Card, CardContent } from '../ui/card'
+import { Skeleton } from '../ui/skeleton'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +49,7 @@ interface FamilyGroup {
   name: string
   owner_id: string
   invite_code: string
+  icon?: string
 }
 
 interface DashboardProps {
@@ -69,6 +77,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [events, setEvents] = useState<any[]>([])
   const [cards, setCards] = useState<any[]>([])
   const [allGroups, setAllGroups] = useState<FamilyGroup[]>([])
+  const [isLoadingData, setIsLoadingData] = useState(true)
+  const [isSwitchingFamily, setIsSwitchingFamily] = useState(false)
 
   useEffect(() => {
     try {
@@ -84,6 +94,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const fetchData = async () => {
     try {
+      setIsLoadingData(true)
+      
       // Fetch lists
       const { data: listsData } = await supabase
         .from('lists')
@@ -118,6 +130,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
       setCards(cardsData || [])
     } catch (error) {
       console.error('Error fetching data:', error)
+    } finally {
+      setIsLoadingData(false)
+      setIsSwitchingFamily(false)
     }
   }
 
@@ -130,7 +145,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             id,
             name,
             owner_id,
-            invite_code
+            invite_code,
+            icon
           )
         `)
         .eq('user_id', user.id)
@@ -174,11 +190,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }
 
   const handleGroupSwitch = async (newGroup: FamilyGroup) => {
+    setIsSwitchingFamily(true)
     if (onSwitchFamily) {
       onSwitchFamily(newGroup)
     } else {
       // Fallback - refresh page
       window.location.reload()
+    }
+  }
+
+  const renderFamilyIcon = (icon?: string) => {
+    const currentIcon = icon || '🏠'
+    
+    if (currentIcon.startsWith('lucide:')) {
+      const iconName = currentIcon.replace('lucide:', '')
+      const iconMap: { [key: string]: any } = {
+        'Home': Home,
+        'Heart': Heart,
+        'Star': Star,
+        'Tree': TreePine,
+        'Flower': Flower,
+        'Sun': Sun,
+        'Moon': Moon
+      }
+      const LucideIcon = iconMap[iconName] || Home
+      return <LucideIcon className="h-6 w-6 text-white" />
+    } else if (currentIcon.startsWith('http')) {
+      return <img src={currentIcon} alt="Family icon" className="h-6 w-6 rounded object-cover" />
+    } else {
+      return <span className="text-xl">{currentIcon}</span>
     }
   }
 
@@ -377,16 +417,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-600 rounded-xl flex items-center justify-center">
-                      <Users className="h-6 w-6 text-white" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-600 rounded-xl flex items-center justify-center relative">
+                      {isSwitchingFamily ? (
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                      ) : (
+                        renderFamilyIcon(group.icon)
+                      )}
                     </div>
                     <div>
                       <div className="font-semibold text-lg">{group.name}</div>
-                      <div className="text-sm text-muted-foreground">Current Family</div>
+                      <div className="text-sm text-muted-foreground">
+                        {isSwitchingFamily ? 'Switching family...' : 'Current Family'}
+                      </div>
                     </div>
                   </div>
                   
-                  {allGroups.length > 1 && (
+                  {allGroups.length > 1 && !isSwitchingFamily && (
                     <ChevronDown className="h-5 w-5 text-muted-foreground" />
                   )}
                 </div>
@@ -394,26 +440,47 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </Card>
           </DropdownMenuTrigger>
           
-          {allGroups.length > 1 && (
-            <DropdownMenuContent align="center" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+          {allGroups.length > 1 && !isSwitchingFamily && (
+            <DropdownMenuContent align="center" className="w-[var(--radix-dropdown-menu-trigger-width)] bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-2xl">
               {allGroups.map((familyGroup) => (
                 <DropdownMenuItem 
                   key={familyGroup.id}
                   onClick={() => handleGroupSwitch(familyGroup)}
-                  disabled={familyGroup.id === group.id}
+                  disabled={familyGroup.id === group.id || isSwitchingFamily}
                   className={cn(
-                    "cursor-pointer",
-                    familyGroup.id === group.id && "bg-primary text-primary-foreground font-medium"
+                    "cursor-pointer p-4 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors duration-200",
+                    familyGroup.id === group.id && "bg-primary/10 text-primary font-medium border-l-4 border-primary"
                   )}
                 >
-                  <Users className="mr-2 h-4 w-4" />
-                  {familyGroup.name}
+                  <div className="flex items-center gap-3 w-full">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+                      <div className="scale-90">
+                        {renderFamilyIcon(familyGroup.icon)}
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-base truncate">{familyGroup.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {familyGroup.id === group.id ? 'Current Family' : 'Switch to this family'}
+                      </div>
+                    </div>
+                  </div>
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onLeaveGroup}>
-                <Plus className="mr-2 h-4 w-4" />
-                Manage Families
+              <DropdownMenuSeparator className="bg-white/20 dark:bg-white/10" />
+              <DropdownMenuItem 
+                onClick={onLeaveGroup}
+                className="cursor-pointer p-4 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors duration-200"
+              >
+                <div className="flex items-center gap-3 w-full">
+                  <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+                    <Plus className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-base">Manage Families</div>
+                    <div className="text-xs text-muted-foreground">Create or join families</div>
+                  </div>
+                </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
           )}
@@ -434,18 +501,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* App Icons */}
       <div className="px-6 py-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 sm:gap-8 md:gap-10 max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl mx-auto">
-          {apps.map((app) => (
-            <div key={app.id} className="relative flex flex-col items-center">
-              <button
-                onClick={() => setCurrentView(app.id)}
-                disabled={!isOnline}
-                className="group relative transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center"
-              >
-                {/* App Icon Container */}
-                <div className="relative">
-                  <div className={`w-20 h-20 bg-gradient-to-br ${app.color} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 group-active:scale-95 transition-transform duration-200`}>
-                    <app.icon className="h-10 w-10 text-white" />
-                  </div>
+          {(isLoadingData || isSwitchingFamily) ? (
+            // Skeleton loading state
+            Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="relative flex flex-col items-center">
+                <div className="flex flex-col items-center">
+                  <Skeleton className="w-20 h-20 rounded-2xl mb-3" />
+                  <Skeleton className="h-4 w-16 rounded" />
+                  <Skeleton className="h-3 w-8 rounded mt-1" />
+                </div>
+              </div>
+            ))
+          ) : (
+            apps.map((app) => (
+              <div key={app.id} className="relative flex flex-col items-center">
+                <button
+                  onClick={() => setCurrentView(app.id)}
+                  disabled={!isOnline}
+                  className="group relative transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center"
+                >
+                  {/* App Icon Container */}
+                  <div className="relative">
+                    <div className={`w-20 h-20 bg-gradient-to-br ${app.color} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 group-active:scale-95 transition-transform duration-200`}>
+                      <app.icon className="h-10 w-10 text-white" />
+                    </div>
                   
                   {/* Notification Badge */}
                   {app.count > 0 && (
@@ -463,7 +542,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </button>
             </div>
-          ))}
+          ))
+          )}
         </div>
       </div>
 
