@@ -99,6 +99,10 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [quickEventTitle, setQuickEventTitle] = useState('')
   const [eventFilter, setEventFilter] = useState<'all' | 'events' | 'subscriptions'>('all')
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showDeleteRangeModal, setShowDeleteRangeModal] = useState(false)
+  const [deletingEvent, setDeletingEvent] = useState<(Event & { isInstance?: boolean; originalDate?: string; isSubscription?: boolean }) | null>(null)
+  const [deleteOption, setDeleteOption] = useState<'single' | 'all' | 'future'>('single')
 
   // Save view mode to localStorage whenever it changes
   useEffect(() => {
@@ -107,13 +111,21 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     }
   }, [viewMode])
 
+  // Helper function to format date in local timezone (YYYY-MM-DD)
+  const formatDateForInput = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
   // Listen for custom events from BottomActions
   useEffect(() => {
     const handleOpenModal = (event: CustomEvent) => {
       if (event.detail.type === 'event') {
         // Pre-fill date if one is selected
         if (selectedDate) {
-          setNewEventDate(selectedDate.toISOString().split('T')[0])
+          setNewEventDate(formatDateForInput(selectedDate))
         }
         setShowCreateModal(true)
       }
@@ -139,6 +151,13 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     setEditingEvent(null)
   }
 
+  const resetDeleteModal = () => {
+    setShowDeleteModal(false)
+    setShowDeleteRangeModal(false)
+    setDeletingEvent(null)
+    setDeleteOption('single')
+  }
+
   const openEditModal = (event: Event) => {
     setEditingEvent(event)
     setNewEventTitle(event.title)
@@ -147,16 +166,22 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     // Parse datetime fields to separate date and time
     if (event.start_datetime) {
       const startDate = new Date(event.start_datetime)
-      setNewEventDate(startDate.toISOString().split('T')[0])
+      setNewEventDate(formatDateForInput(startDate))
       setNewEventStartTime(startDate.toTimeString().slice(0, 5))
     }
     
     if (event.end_datetime) {
       const endDate = new Date(event.end_datetime)
       if (event.event_type === 'range') {
-        setNewEventEndDate(endDate.toISOString().split('T')[0])
+        setNewEventEndDate(formatDateForInput(endDate))
+        // Only set end time if it's not the default end-of-day time (23:59)
+        const timeString = endDate.toTimeString().slice(0, 5)
+        if (timeString !== '23:59') {
+          setNewEventEndTime(timeString)
+        }
+      } else {
+        setNewEventEndTime(endDate.toTimeString().slice(0, 5))
       }
-      setNewEventEndTime(endDate.toTimeString().slice(0, 5))
     }
     
     setNewEventType(event.event_type)
@@ -201,14 +226,14 @@ export const EventsTab: React.FC<EventsTabProps> = ({
 
       // Add fields based on event type
       if (newEventType === 'range') {
-        eventData.end_date = newEventEndDate
-        if (newEventEndTime) {
-          eventData.end_datetime = buildDateTimeString(newEventEndDate, newEventEndTime)
-        }
+        // Always set end_datetime for range events to ensure calendar display works
+        eventData.end_datetime = newEventEndTime 
+          ? buildDateTimeString(newEventEndDate, newEventEndTime)
+          : buildDateTimeString(newEventEndDate, '23:59') // End of day if no time specified
       } else if (newEventType === 'recurring') {
         eventData.recurrence_pattern = recurrencePattern
         eventData.recurrence_interval = recurrenceInterval
-        eventData.recurrence_end_date = recurrenceEndDate
+        eventData.recurrence_end_date = recurrenceEndDate || null
       }
 
       // Add end time for single events if specified
@@ -259,14 +284,14 @@ export const EventsTab: React.FC<EventsTabProps> = ({
 
       // Add fields based on event type
       if (newEventType === 'range') {
-        eventData.end_date = newEventEndDate
-        if (newEventEndTime) {
-          eventData.end_datetime = buildDateTimeString(newEventEndDate, newEventEndTime)
-        }
+        // Always set end_datetime for range events to ensure calendar display works
+        eventData.end_datetime = newEventEndTime 
+          ? buildDateTimeString(newEventEndDate, newEventEndTime)
+          : buildDateTimeString(newEventEndDate, '23:59') // End of day if no time specified
       } else if (newEventType === 'recurring') {
         eventData.recurrence_pattern = recurrencePattern
         eventData.recurrence_interval = recurrenceInterval
-        eventData.recurrence_end_date = recurrenceEndDate
+        eventData.recurrence_end_date = recurrenceEndDate || null
       }
 
       // Add end time for single events if specified
@@ -299,7 +324,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
       const eventData = {
         group_id: groupId,
         title: quickEventTitle,
-        date: selectedDate.toISOString().split('T')[0],
+        date: formatDateForInput(selectedDate),
         event_type: 'single' as const,
         description: null
       }
@@ -340,9 +365,38 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     }
   }
 
-  const deleteEvent = async (eventId: string) => {
-    if (!isOnline || !confirm('Are you sure you want to delete this event?')) return
+  const handleDeleteClick = (event: Event & { isInstance?: boolean; originalDate?: string; isSubscription?: boolean }) => {
+    if (!isOnline) return
+    
+    // If it's a subscription, delete directly
+    if (event.isSubscription) {
+      if (confirm('Are you sure you want to delete this subscription?')) {
+        deleteEventDirect(event.id)
+      }
+      return
+    }
+    
+    // If it's a single event, delete directly
+    if (event.event_type === 'single') {
+      if (confirm('Are you sure you want to delete this event?')) {
+        deleteEventDirect(event.id)
+      }
+      return
+    }
+    
+    // If it's a date range event, show confirmation modal
+    if (event.event_type === 'range') {
+      setDeletingEvent(event)
+      setShowDeleteRangeModal(true)
+      return
+    }
+    
+    // If it's a recurring event, show modal with options
+    setDeletingEvent(event)
+    setShowDeleteModal(true)
+  }
 
+  const deleteEventDirect = async (eventId: string) => {
     try {
       const { error } = await supabase
         .from('events')
@@ -354,6 +408,231 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     } catch (error) {
       console.error('Error deleting event:', error)
     }
+  }
+
+  const handleDeleteRangeEvent = async () => {
+    if (!deletingEvent || !isOnline) return
+
+    setIsLoading(true)
+    try {
+      await deleteEventDirect(deletingEvent.id)
+      resetDeleteModal()
+    } catch (error) {
+      console.error('Error deleting range event:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleRecurringEventDelete = async () => {
+    if (!deletingEvent || !isOnline) return
+
+    setIsLoading(true)
+    try {
+      // Extract the original UUID from instance IDs
+      // Instance IDs are in format: "uuid-YYYY-MM-DD"
+      // We need to extract just the UUID part (36 characters including hyphens)
+      const originalId = deletingEvent.id.length > 36 
+        ? deletingEvent.id.substring(0, 36)
+        : deletingEvent.id
+
+      switch (deleteOption) {
+        case 'single':
+          // For single instance deletion, we need to add an exception date or split the series
+          await handleSingleInstanceDelete(originalId, deletingEvent.date)
+          break
+          
+        case 'all':
+          // Delete the entire recurring series
+          await deleteEventDirect(originalId)
+          break
+          
+        case 'future':
+          // Update the recurrence_end_date to be the day before this instance
+          await handleFutureInstancesDelete(originalId, deletingEvent.date)
+          break
+      }
+      
+      resetDeleteModal()
+      onUpdate()
+    } catch (error) {
+      console.error('Error deleting recurring event:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSingleInstanceDelete = async (originalId: string, instanceDate: string) => {
+    const { data: originalEvent, error: fetchError } = await supabase
+      .from('events')
+      .select('*')
+      .eq('id', originalId)
+      .single()
+
+    if (fetchError) throw fetchError
+
+    const originalStartDate = new Date(originalEvent.date)
+    const deleteDate = new Date(instanceDate)
+    const endDate = originalEvent.recurrence_end_date ? new Date(originalEvent.recurrence_end_date) : null
+
+    // Case 1: Deleting the first instance - shift the start date
+    if (originalEvent.date === instanceDate) {
+      const nextDate = calculateNextOccurrence(
+        originalStartDate, 
+        originalEvent.recurrence_pattern, 
+        originalEvent.recurrence_interval || 1
+      )
+      
+      const { error } = await supabase
+        .from('events')
+        .update({ 
+          date: nextDate.toISOString().split('T')[0],
+          start_datetime: originalEvent.start_datetime ? 
+            buildDateTimeString(nextDate.toISOString().split('T')[0], originalEvent.start_datetime.split('T')[1]?.slice(0, 5)) :
+            null
+        })
+        .eq('id', originalId)
+        
+      if (error) throw error
+      return
+    }
+
+    // Case 2: Deleting the last instance (if there's an end date and this is the last occurrence)
+    if (endDate && deleteDate.getTime() === endDate.getTime()) {
+      const previousDate = calculatePreviousOccurrence(
+        deleteDate,
+        originalEvent.recurrence_pattern,
+        originalEvent.recurrence_interval || 1
+      )
+      
+      const { error } = await supabase
+        .from('events')
+        .update({ 
+          recurrence_end_date: previousDate.toISOString().split('T')[0]
+        })
+        .eq('id', originalId)
+        
+      if (error) throw error
+      return
+    }
+
+    // Case 3: Deleting from the middle - split the series into two parts
+    // First part: original event ending the day before the deleted instance
+    const dayBefore = new Date(deleteDate)
+    dayBefore.setDate(dayBefore.getDate() - 1)
+    
+    // Update the original event to end before the deleted instance
+    const { error: updateError } = await supabase
+      .from('events')
+      .update({ 
+        recurrence_end_date: dayBefore.toISOString().split('T')[0]
+      })
+      .eq('id', originalId)
+    
+    if (updateError) throw updateError
+
+    // Second part: create a new series starting after the deleted instance
+    // Only if there are more occurrences after the deleted date
+    const dayAfter = calculateNextOccurrence(
+      deleteDate,
+      originalEvent.recurrence_pattern,
+      originalEvent.recurrence_interval || 1
+    )
+
+    // Check if there should be a second series (if original had an end date and dayAfter is before it)
+    const shouldCreateSecondSeries = !endDate || dayAfter <= endDate
+
+    if (shouldCreateSecondSeries) {
+      const newEventData: any = {
+        group_id: originalEvent.group_id,
+        title: originalEvent.title,
+        date: dayAfter.toISOString().split('T')[0],
+        event_type: originalEvent.event_type,
+        recurrence_pattern: originalEvent.recurrence_pattern,
+        recurrence_interval: originalEvent.recurrence_interval,
+        recurrence_end_date: originalEvent.recurrence_end_date,
+        description: originalEvent.description
+      }
+
+      // Copy datetime fields if they exist
+      if (originalEvent.start_datetime) {
+        newEventData.start_datetime = buildDateTimeString(
+          dayAfter.toISOString().split('T')[0], 
+          originalEvent.start_datetime.split('T')[1]?.slice(0, 5)
+        )
+      }
+
+      if (originalEvent.end_datetime) {
+        newEventData.end_datetime = buildDateTimeString(
+          dayAfter.toISOString().split('T')[0], 
+          originalEvent.end_datetime.split('T')[1]?.slice(0, 5)
+        )
+      }
+
+      const { error: createError } = await supabase
+        .from('events')
+        .insert([newEventData])
+
+      if (createError) throw createError
+    }
+  }
+
+  const handleFutureInstancesDelete = async (originalId: string, fromDate: string) => {
+    // Set the recurrence_end_date to the day before this instance
+    const instanceDate = new Date(fromDate)
+    const endDate = new Date(instanceDate)
+    endDate.setDate(endDate.getDate() - 1)
+    
+    const { error } = await supabase
+      .from('events')
+      .update({ 
+        recurrence_end_date: endDate.toISOString().split('T')[0] 
+      })
+      .eq('id', originalId)
+      
+    if (error) throw error
+  }
+
+  const calculateNextOccurrence = (date: Date, pattern: string, interval: number): Date => {
+    const nextDate = new Date(date)
+    
+    switch (pattern) {
+      case 'daily':
+        nextDate.setDate(nextDate.getDate() + interval)
+        break
+      case 'weekly':
+        nextDate.setDate(nextDate.getDate() + (7 * interval))
+        break
+      case 'monthly':
+        nextDate.setMonth(nextDate.getMonth() + interval)
+        break
+      case 'yearly':
+        nextDate.setFullYear(nextDate.getFullYear() + interval)
+        break
+    }
+    
+    return nextDate
+  }
+
+  const calculatePreviousOccurrence = (date: Date, pattern: string, interval: number): Date => {
+    const prevDate = new Date(date)
+    
+    switch (pattern) {
+      case 'daily':
+        prevDate.setDate(prevDate.getDate() - interval)
+        break
+      case 'weekly':
+        prevDate.setDate(prevDate.getDate() - (7 * interval))
+        break
+      case 'monthly':
+        prevDate.setMonth(prevDate.getMonth() - interval)
+        break
+      case 'yearly':
+        prevDate.setFullYear(prevDate.getFullYear() - interval)
+        break
+    }
+    
+    return prevDate
   }
 
   // Helper function to generate recurring event instances
@@ -435,8 +714,46 @@ export const EventsTab: React.FC<EventsTabProps> = ({
       isSubscription: true
     }))
 
-  // Expand all events to include recurring instances
+  // Expand all events to include recurring instances (for calendar display)
   const expandedEvents = events.flatMap(event => generateRecurringInstances(event))
+
+  // Create a filtered version for upcoming events list with special handling
+  const getUpcomingListEvents = () => {
+    const upcomingListEvents: any[] = []
+    
+    events.forEach(event => {
+      if (event.event_type === 'recurring') {
+        // For recurring events, only show the first occurrence in upcoming list
+        const firstInstance = generateRecurringInstances(event)[0]
+        if (firstInstance) {
+          upcomingListEvents.push({ ...firstInstance, isFirstRecurrence: true })
+        }
+      } else if (event.event_type === 'range') {
+        // For date range events, show both start and end dates
+        upcomingListEvents.push({
+          ...event,
+          id: `${event.id}-start`,
+          isRangeStart: true
+        })
+        
+        if (event.end_datetime) {
+          const endDate = new Date(event.end_datetime).toISOString().split('T')[0]
+          upcomingListEvents.push({
+            ...event,
+            id: `${event.id}-end`,
+            date: endDate,
+            title: `${event.title} (Ends)`,
+            isRangeEnd: true
+          })
+        }
+      } else {
+        // Single events remain unchanged
+        upcomingListEvents.push({ ...event, isInstance: false })
+      }
+    })
+    
+    return upcomingListEvents
+  }
 
   // Combine events and subscriptions based on filter
   const getFilteredEvents = () => {
@@ -451,6 +768,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   }
 
   const allDisplayEvents = getFilteredEvents()
+  const upcomingListEvents = getUpcomingListEvents()
 
   const formatDate = (dateString: string) => {
     try {
@@ -506,7 +824,38 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   }
 
   // Helper function to get event type info
-  const getEventTypeInfo = (event: Event) => {
+  const getEventTypeInfo = (event: any) => {
+    // Handle special upcoming list event types
+    if (event.isFirstRecurrence) {
+      return {
+        icon: Repeat,
+        label: `First of recurring ${event.recurrence_pattern}`,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-100',
+        borderColor: 'border-l-blue-500'
+      }
+    }
+    
+    if (event.isRangeStart) {
+      return {
+        icon: CalendarDays,
+        label: `Range starts`,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-100',
+        borderColor: 'border-l-purple-500'
+      }
+    }
+    
+    if (event.isRangeEnd) {
+      return {
+        icon: CalendarDays,
+        label: `Range ends`,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-100',
+        borderColor: 'border-l-purple-500'
+      }
+    }
+
     switch (event.event_type) {
       case 'recurring':
         return {
@@ -537,7 +886,8 @@ export const EventsTab: React.FC<EventsTabProps> = ({
 
   const isUpcoming = (dateString: string) => {
     try {
-      const eventDate = new Date(dateString)
+      // Fix timezone issue by forcing local timezone
+      const eventDate = new Date(dateString + 'T00:00:00')
       const today = new Date()
       today.setHours(0, 0, 0, 0)
       eventDate.setHours(0, 0, 0, 0)
@@ -547,27 +897,57 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     }
   }
 
+  // Sort all events for calendar display
   const sortedEvents = allDisplayEvents.sort((a, b) => {
     try {
-      return new Date(a.date).getTime() - new Date(b.date).getTime()
+      const dateA = new Date(a.date + 'T00:00:00').getTime()
+      const dateB = new Date(b.date + 'T00:00:00').getTime()
+      return dateA - dateB
     } catch {
       return 0
     }
   })
 
-  const upcomingEvents = sortedEvents.filter(event => isUpcoming(event.date))
-  const pastEvents = sortedEvents.filter(event => !isUpcoming(event.date))
+  // Sort upcoming list events separately
+  const sortedUpcomingListEvents = [...upcomingListEvents, ...subscriptionEvents].sort((a, b) => {
+    try {
+      const dateA = new Date(a.date + 'T00:00:00').getTime()
+      const dateB = new Date(b.date + 'T00:00:00').getTime()
+      return dateA - dateB
+    } catch {
+      return 0
+    }
+  })
+
+  const upcomingEvents = sortedUpcomingListEvents.filter(event => isUpcoming(event.date))
+  const pastEvents = sortedUpcomingListEvents.filter(event => !isUpcoming(event.date))
 
   // Get minimum date for input (today)
-  const today = new Date().toISOString().split('T')[0]
+  const today = formatDateForInput(new Date())
 
   // Get events for a specific date
   const getEventsForDate = (date: Date) => {
     return allDisplayEvents.filter(event => {
-      const eventDate = new Date(event.date)
-      return eventDate.getFullYear() === date.getFullYear() &&
-             eventDate.getMonth() === date.getMonth() &&
-             eventDate.getDate() === date.getDate()
+      // Fix timezone issue by forcing local timezone
+      const eventDate = new Date(event.date + 'T00:00:00')
+      
+      // For single events and recurring instances, check exact date match
+      if (event.event_type !== 'range') {
+        return eventDate.getFullYear() === date.getFullYear() &&
+               eventDate.getMonth() === date.getMonth() &&
+               eventDate.getDate() === date.getDate()
+      }
+      
+      // For date range events, check if the selected date falls within the range
+      const startDate = new Date(event.date + 'T00:00:00')
+      const endDate = event.end_datetime ? new Date(event.end_datetime) : startDate
+      
+      // Reset time to compare dates only
+      const selectedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+      const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+      const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+      
+      return selectedDate >= rangeStart && selectedDate <= rangeEnd
     })
   }
 
@@ -638,7 +1018,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => deleteEvent(event.id)}
+                      onClick={() => handleDeleteClick(event)}
                       disabled={!isOnline}
                       className="text-gray-600 hover:text-red-700 hover:bg-red-50 p-1 h-auto"
                     >
@@ -745,7 +1125,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => deleteEvent(event.id)}
+                    onClick={() => handleDeleteClick(event)}
                     disabled={!isOnline}
                     className={`${isUpcomingEvent ? 'text-gray-600 hover:text-red-700 hover:bg-red-50' : 'text-gray-500 hover:text-red-600 hover:bg-red-50'} p-2 h-auto`}
                   >
@@ -856,11 +1236,22 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   const convertEventsToFeatures = (): Feature[] => {
     return allDisplayEvents.map((event) => {
       const typeInfo = getEventTypeInfo(event)
+      
+      // Fix timezone issue for calendar display
+      // When no time is set, ensure we parse the date in local timezone
+      const parseEventDate = (dateString: string) => {
+        const date = new Date(dateString + 'T00:00:00') // Force local timezone
+        return date
+      }
+      
+      const startDate = parseEventDate(event.date)
+      const endDate = event.end_datetime ? new Date(event.end_datetime) : startDate
+      
       return {
         id: event.id,
         name: event.title,
-        startAt: new Date(event.date),
-        endAt: event.end_datetime ? new Date(event.end_datetime) : new Date(event.date),
+        startAt: startDate,
+        endAt: endDate,
         status: {
           id: event.event_type,
           name: typeInfo.label,
@@ -879,7 +1270,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
       return { start: currentYear - 1, end: currentYear + 2 }
     }
     
-    const eventYears = allDisplayEvents.map(event => new Date(event.date).getFullYear())
+    const eventYears = allDisplayEvents.map(event => new Date(event.date + 'T00:00:00').getFullYear()) // Fix timezone here too
     const minYear = Math.min(...eventYears, currentYear - 1)
     const maxYear = Math.max(...eventYears, currentYear + 2)
     
@@ -1036,7 +1427,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
             }`}
           >
             <CalendarIcon className="h-3 w-3 mr-1" />
-            Events ({expandedEvents.length})
+            Events ({events.length})
           </button>
           <button
             onClick={() => setEventFilter('subscriptions')}
@@ -1095,7 +1486,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                 type="date"
                 value={newEventDate}
                 onChange={(e) => setNewEventDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                min={today}
               />
             </div>
             <div className="space-y-2">
@@ -1131,7 +1522,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                 type="date"
                 value={newEventEndDate}
                 onChange={(e) => setNewEventEndDate(e.target.value)}
-                min={newEventDate || new Date().toISOString().split('T')[0]}
+                min={newEventDate || today}
               />
             </div>
           )}
@@ -1254,7 +1645,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                   type="date"
                   value={newEventDate}
                   onChange={(e) => setNewEventDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={today}
                 />
               </div>
               <div className="space-y-2">
@@ -1290,7 +1681,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                   type="date"
                   value={newEventEndDate}
                   onChange={(e) => setNewEventEndDate(e.target.value)}
-                  min={newEventDate || new Date().toISOString().split('T')[0]}
+                  min={newEventDate || today}
                 />
               </div>
             )}
@@ -1331,7 +1722,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                     type="date"
                     value={recurrenceEndDate}
                     onChange={(e) => setRecurrenceEndDate(e.target.value)}
-                    min={newEventDate || new Date().toISOString().split('T')[0]}
+                    min={newEventDate || today}
                     placeholder="Leave empty for indefinite recurring"
                   />
                 </div>
@@ -1415,6 +1806,130 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                   setShowQuickAdd(false)
                   setQuickEventTitle('')
                 }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Recurring Event Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Recurring Event</DialogTitle>
+            <DialogDescription>
+              How would you like to delete "{deletingEvent?.title}"?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  id="delete-single"
+                  name="deleteOption"
+                  value="single"
+                  checked={deleteOption === 'single'}
+                  onChange={(e) => setDeleteOption(e.target.value as 'single' | 'all' | 'future')}
+                  className="text-primary"
+                />
+                <Label htmlFor="delete-single" className="flex-1 cursor-pointer">
+                  <div className="font-medium">This event only</div>
+                  <div className="text-sm text-muted-foreground">
+                    Delete just this occurrence on {deletingEvent?.date ? formatDate(deletingEvent.date) : ''}
+                  </div>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  id="delete-future"
+                  name="deleteOption"
+                  value="future"
+                  checked={deleteOption === 'future'}
+                  onChange={(e) => setDeleteOption(e.target.value as 'single' | 'all' | 'future')}
+                  className="text-primary"
+                />
+                <Label htmlFor="delete-future" className="flex-1 cursor-pointer">
+                  <div className="font-medium">This and future events</div>
+                  <div className="text-sm text-muted-foreground">
+                    Delete this occurrence and all future occurrences
+                  </div>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  id="delete-all"
+                  name="deleteOption"
+                  value="all"
+                  checked={deleteOption === 'all'}
+                  onChange={(e) => setDeleteOption(e.target.value as 'single' | 'all' | 'future')}
+                  className="text-primary"
+                />
+                <Label htmlFor="delete-all" className="flex-1 cursor-pointer">
+                  <div className="font-medium">All events in this series</div>
+                  <div className="text-sm text-muted-foreground">
+                    Delete the entire recurring event series
+                  </div>
+                </Label>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button 
+                onClick={handleRecurringEventDelete} 
+                variant="destructive"
+                className="flex-1"
+                disabled={isLoading || !isOnline}
+              >
+                {isLoading ? 'Deleting...' : 'Delete Event'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={resetDeleteModal}
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Range Event Modal */}
+      <Dialog open={showDeleteRangeModal} onOpenChange={setShowDeleteRangeModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Date Range Event</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{deletingEvent?.title}"?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              This will permanently delete the entire date range event from{' '}
+              {deletingEvent?.date && formatDate(deletingEvent.date)} to{' '}
+              {deletingEvent?.end_datetime && formatDate(new Date(deletingEvent.end_datetime).toISOString().split('T')[0])}.
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button 
+                onClick={handleDeleteRangeEvent} 
+                variant="destructive"
+                className="flex-1"
+                disabled={isLoading || !isOnline}
+              >
+                {isLoading ? 'Deleting...' : 'Delete Event'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={resetDeleteModal}
+                disabled={isLoading}
               >
                 Cancel
               </Button>

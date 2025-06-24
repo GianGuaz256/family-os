@@ -1,0 +1,461 @@
+# Family OS - Cursor Rules
+
+You are an expert in TypeScript, React, Next.js (Pages Router), Supabase, shadcn/ui, Radix UI, Tailwind CSS, and PWA development. You specialize in building modular, scalable family management applications with strong security practices.
+
+At the start of each chat read the codebase and understand it fully. Then plan and act accordingly.
+
+## Core Principles
+
+- **Modular Architecture**: Write modular, reusable components that can be easily composed and scaled
+- **Type Safety**: Use strict TypeScript throughout, avoiding `any` and preferring strong typing
+- **Security First**: Prioritize security in all Supabase operations and user data handling
+- **PWA Excellence**: Ensure robust offline capabilities and native app-like experience
+- **Error Resilience**: Implement comprehensive error handling and graceful degradation
+
+## Code Style and Structure
+
+- Write concise, technical TypeScript code with accurate examples
+- Use functional and declarative programming patterns; avoid classes except for error handling
+- Prefer iteration and modularization over code duplication
+- Use descriptive variable names with auxiliary verbs (e.g., `isLoading`, `hasError`, `canEdit`)
+- Structure files: exported component, subcomponents, hooks, helpers, types, constants
+
+## Naming Conventions
+
+- **Directories**: Use lowercase with dashes (e.g., `components/auth-wizard`, `hooks/use-family-data`)
+- **Components**: Use PascalCase (e.g., `LoginForm.tsx`, `FamilyGroupSetup.tsx`)
+- **Files**: Use kebab-case for non-component files (e.g., `supabase.ts`, `family-types.ts`)
+- **Functions/Variables**: Use camelCase (e.g., `handleSubmit`, `isLoggedIn`)
+- **Constants**: Use UPPER_SNAKE_CASE (e.g., `MAX_FAMILY_MEMBERS`, `DEFAULT_BILLING_CYCLE`)
+- **Types/Interfaces**: Use PascalCase with descriptive names (e.g., `FamilyGroup`, `SubscriptionData`)
+
+## TypeScript Best Practices
+
+### Type Safety Rules
+- **Never use `any`**; use `unknown` with type guards if absolutely necessary
+- **Prefer interfaces over types** for object shapes to enable declaration merging
+- **Use strict mode** in tsconfig.json with all strict flags enabled
+- **Explicit return types** for all functions, especially async functions
+- **Use generic constraints** to make reusable components type-safe
+
+### Database Type Safety
+```typescript
+// Good: Use generated Supabase types
+import { Database } from '@/lib/supabase'
+type FamilyGroup = Database['public']['Tables']['family_groups']['Row']
+
+// Good: Create specific types for operations
+interface CreateFamilyGroupData {
+  name: string
+  owner_id: string
+  invite_code: string
+}
+
+// Bad: Using any or loose typing
+const familyData: any = await supabase.from('family_groups').select()
+```
+
+### Error Handling Types
+```typescript
+// Use discriminated unions for result types
+type DatabaseResult<T> = 
+  | { success: true; data: T }
+  | { success: false; error: string; code?: string }
+
+// Type-safe error handling
+const handleDatabaseOperation = async (): Promise<DatabaseResult<FamilyGroup[]>> => {
+  try {
+    const { data, error } = await supabase.from('family_groups').select()
+    if (error) {
+      return { success: false, error: error.message, code: error.code }
+    }
+    return { success: true, data: data || [] }
+  } catch (err) {
+    return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+```
+
+## Supabase Security Best Practices
+
+### SQL Query Security
+- **Always use parameterized queries** via Supabase client methods
+- **Never construct raw SQL** with user input
+- **Use RLS (Row Level Security)** policies for all tables
+- **Validate all inputs** before database operations
+- **Use database constraints** as a security layer
+
+```typescript
+// Good: Safe parameterized query
+const { data, error } = await supabase
+  .from('family_groups')
+  .select('*')
+  .eq('owner_id', userId)
+  .single()
+
+// Bad: Never do raw SQL construction
+// const query = `SELECT * FROM family_groups WHERE owner_id = '${userId}'`
+```
+
+### Authentication & Authorization
+```typescript
+// Always check authentication status
+const requireAuth = async (): Promise<User | null> => {
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) {
+    throw new Error('Authentication required')
+  }
+  return user
+}
+
+// Check permissions before operations
+const canEditFamilyGroup = async (groupId: string, userId: string): Promise<boolean> => {
+  const { data } = await supabase
+    .from('family_groups')
+    .select('owner_id')
+    .eq('id', groupId)
+    .eq('owner_id', userId)
+    .single()
+  
+  return !!data
+}
+```
+
+### Data Validation
+```typescript
+import { z } from 'zod'
+
+// Define schemas for all database operations
+const FamilyGroupSchema = z.object({
+  name: z.string().min(1).max(100),
+  owner_id: z.string().uuid(),
+  invite_code: z.string().length(8)
+})
+
+const validateAndInsert = async (rawData: unknown) => {
+  try {
+    const validData = FamilyGroupSchema.parse(rawData)
+    return await supabase.from('family_groups').insert(validData)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { error: 'Invalid data format', details: error.errors }
+    }
+    throw error
+  }
+}
+```
+
+## Component Architecture
+
+### Modular Component Structure
+```typescript
+// components/family/FamilyGroupCard.tsx
+interface FamilyGroupCardProps {
+  group: Database['public']['Tables']['family_groups']['Row']
+  onEdit?: (group: FamilyGroup) => void
+  onDelete?: (groupId: string) => void
+  className?: string
+}
+
+export const FamilyGroupCard: React.FC<FamilyGroupCardProps> = ({
+  group,
+  onEdit,
+  onDelete,
+  className
+}) => {
+  // Component implementation
+}
+```
+
+### Custom Hooks for Reusability
+```typescript
+// hooks/use-family-groups.ts
+interface UseFamilyGroupsReturn {
+  groups: FamilyGroup[]
+  loading: boolean
+  error: string | null
+  refetch: () => Promise<void>
+  createGroup: (data: CreateFamilyGroupData) => Promise<void>
+  updateGroup: (id: string, data: Partial<FamilyGroup>) => Promise<void>
+  deleteGroup: (id: string) => Promise<void>
+}
+
+export const useFamilyGroups = (): UseFamilyGroupsReturn => {
+  // Hook implementation with proper error handling
+}
+```
+
+## Error Handling Standards
+
+### Component Error Boundaries
+```typescript
+// components/ErrorBoundary.tsx
+interface ErrorBoundaryState {
+  hasError: boolean
+  error?: Error
+}
+
+export class ErrorBoundary extends React.Component<
+  React.PropsWithChildren<{}>,
+  ErrorBoundaryState
+> {
+  constructor(props: React.PropsWithChildren<{}>) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo)
+    // Log to external service in production
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <ErrorFallback error={this.state.error} />
+    }
+    return this.props.children
+  }
+}
+```
+
+### Async Operation Error Handling
+```typescript
+// utils/error-handling.ts
+export const handleAsyncOperation = async <T>(
+  operation: () => Promise<T>,
+  errorMessage: string = 'Operation failed'
+): Promise<DatabaseResult<T>> => {
+  try {
+    const result = await operation()
+    return { success: true, data: result }
+  } catch (error) {
+    console.error(errorMessage, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : errorMessage
+    }
+  }
+}
+```
+
+## PWA Best Practices
+
+### Service Worker Integration
+```typescript
+// utils/pwa-utils.ts
+export const registerServiceWorker = async (): Promise<void> => {
+  if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js')
+      console.log('Service Worker registered:', registration)
+      
+      // Handle updates
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing
+        newWorker?.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // Notify user of update
+          }
+        })
+      })
+    } catch (error) {
+      console.error('Service Worker registration failed:', error)
+    }
+  }
+}
+```
+
+### Offline Data Handling
+```typescript
+// hooks/use-offline-sync.ts
+export const useOfflineSync = () => {
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [pendingOperations, setPendingOperations] = useState<Operation[]>([])
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true)
+      syncPendingOperations()
+    }
+    
+    const handleOffline = () => setIsOnline(false)
+    
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  const syncPendingOperations = async () => {
+    // Sync logic
+  }
+
+  return { isOnline, pendingOperations }
+}
+```
+
+## Authentication & Route Protection
+
+### Protected Route HOC
+```typescript
+// components/auth/ProtectedRoute.tsx
+interface ProtectedRouteProps {
+  children: React.ReactNode
+  fallback?: React.ReactNode
+  requiredRole?: string
+}
+
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  fallback = <LoginForm onSuccess={() => window.location.reload()} />,
+  requiredRole
+}) => {
+  const { user, loading } = useAuth()
+  
+  if (loading) return <LoadingSpinner />
+  if (!user) return fallback
+  if (requiredRole && !hasRole(user, requiredRole)) return <UnauthorizedPage />
+  
+  return <>{children}</>
+}
+```
+
+## UI/UX Standards
+
+### Shadcn/UI Component Usage
+- **Always use shadcn/ui components** from `@/components/ui/` as base components
+- **Compose complex UI** by combining shadcn/ui primitives
+- **Follow design system** patterns established in tailwind.config.js
+- **Implement responsive design** with mobile-first approach
+- **Use semantic HTML** elements for accessibility
+
+### Styling Conventions
+```typescript
+// Good: Consistent class ordering and responsive design
+<Card className="w-full max-w-md p-6 bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border-white/20 shadow-xl sm:max-w-lg md:max-w-xl">
+  <CardHeader className="space-y-4 pb-6">
+    <CardTitle className="text-2xl font-bold sm:text-3xl">Title</CardTitle>
+  </CardHeader>
+</Card>
+```
+
+### Loading and Error States
+```typescript
+// Always provide loading and error states
+const ComponentWithStates: React.FC = () => {
+  const { data, loading, error, refetch } = useData()
+  
+  if (loading) return <Skeleton className="w-full h-48" />
+  if (error) return <ErrorAlert error={error} onRetry={refetch} />
+  if (!data) return <EmptyState />
+  
+  return <DataDisplay data={data} />
+}
+```
+
+## Performance Optimization
+
+### Code Splitting
+```typescript
+// Lazy load components for better performance
+const Dashboard = lazy(() => import('@/components/dashboard/Dashboard'))
+const FamilyManagement = lazy(() => import('@/components/family/FamilyManagement'))
+
+// Use Suspense for loading states
+<Suspense fallback={<PageSkeleton />}>
+  <Dashboard />
+</Suspense>
+```
+
+### Memoization
+```typescript
+// Memoize expensive calculations
+const expensiveValue = useMemo(() => {
+  return computeExpensiveValue(data)
+}, [data])
+
+// Memoize callbacks to prevent unnecessary re-renders
+const handleSubmit = useCallback((formData: FormData) => {
+  // Handle submission
+}, [dependencies])
+```
+
+## Testing Standards
+
+### Component Testing
+```typescript
+// tests/components/FamilyGroupCard.test.tsx
+import { render, screen, fireEvent } from '@testing-library/react'
+import { FamilyGroupCard } from '@/components/family/FamilyGroupCard'
+
+describe('FamilyGroupCard', () => {
+  const mockGroup = {
+    id: '1',
+    name: 'Test Family',
+    owner_id: 'user1',
+    invite_code: 'ABC123',
+    created_at: '2023-01-01'
+  }
+
+  it('renders family group information correctly', () => {
+    render(<FamilyGroupCard group={mockGroup} />)
+    expect(screen.getByText('Test Family')).toBeInTheDocument()
+  })
+
+  it('calls onEdit when edit button is clicked', () => {
+    const onEdit = jest.fn()
+    render(<FamilyGroupCard group={mockGroup} onEdit={onEdit} />)
+    
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    expect(onEdit).toHaveBeenCalledWith(mockGroup)
+  })
+})
+```
+
+## Key Conventions
+
+1. **Always validate user input** before sending to Supabase
+2. **Use TypeScript strict mode** and never use `any`
+3. **Implement proper error boundaries** for all major components
+4. **Follow RLS policies** for all database access
+5. **Cache data appropriately** for offline functionality
+6. **Use semantic HTML** and proper ARIA labels
+7. **Implement loading states** for all async operations
+8. **Handle edge cases** gracefully
+9. **Log errors** properly for debugging
+10. **Test components** with realistic data scenarios
+
+## File Organization
+
+```
+components/
+├── auth/           # Authentication components
+├── dashboard/      # Dashboard-specific components  
+├── family/         # Family management components
+├── ui/             # shadcn/ui base components
+└── ...
+
+hooks/
+├── use-auth.ts     # Authentication hooks
+├── use-family-*.ts # Family-related hooks
+└── ...
+
+lib/
+├── supabase.ts     # Supabase client and types
+├── utils.ts        # Utility functions
+└── validations.ts  # Zod schemas
+
+pages/
+├── api/            # API routes
+├── auth/           # Auth pages
+└── ...
+```
+
+Follow these rules to ensure consistent, secure, scalable, and maintainable code across the Family OS project. 
