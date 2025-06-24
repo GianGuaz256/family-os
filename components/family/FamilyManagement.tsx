@@ -75,6 +75,9 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false)
   const [showIconSelector, setShowIconSelector] = useState(false)
   const [isUpdatingIcon, setIsUpdatingIcon] = useState(false)
+  const [showRemoveMemberDialog, setShowRemoveMemberDialog] = useState(false)
+  const [memberToRemove, setMemberToRemove] = useState<FamilyMember | null>(null)
+  const [isRemovingMember, setIsRemovingMember] = useState(false)
 
   useEffect(() => {
     if (isOnline) {
@@ -121,20 +124,29 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
     try {
       setError('')
       
-      // Delete the family group (cascade delete will handle members, lists, etc.)
+      // First, let's check if we're actually the owner
+      if (group.owner_id !== user.id) {
+        throw new Error('Only family owners can delete families')
+      }
+      
+      // Delete the family group (CASCADE DELETE will handle related data)
       const { error } = await supabase
         .from('family_groups')
         .delete()
         .eq('id', group.id)
         .eq('owner_id', user.id) // Extra safety check
 
-      if (error) throw error
+      if (error) {
+        console.error('Error deleting family:', error)
+        throw error
+      }
       
+      console.log('Family deletion completed successfully!')
       setShowDeleteDialog(false)
       onFamilyDeleted()
     } catch (error: any) {
       console.error('Error deleting family:', error)
-      setError('Failed to delete family. Please try again.')
+      setError(`Failed to delete family: ${error.message || 'Unknown error'}. Please try again.`)
     } finally {
       setIsDeleting(false)
     }
@@ -209,6 +221,40 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
     } finally {
       setIsUpdatingIcon(false)
     }
+  }
+
+  const removeMember = async () => {
+    if (!isOnline || !memberToRemove) return
+    
+    setIsRemovingMember(true)
+    try {
+      setError('')
+      
+      // Remove the member from the family group
+      const { error } = await supabase
+        .from('group_members')
+        .delete()
+        .eq('id', memberToRemove.id)
+        .eq('group_id', group.id)
+
+      if (error) throw error
+      
+      // Update the local members list
+      setMembers(prev => prev.filter(member => member.id !== memberToRemove.id))
+      
+      setShowRemoveMemberDialog(false)
+      setMemberToRemove(null)
+    } catch (error: any) {
+      console.error('Error removing member:', error)
+      setError('Failed to remove member. Please try again.')
+    } finally {
+      setIsRemovingMember(false)
+    }
+  }
+
+  const handleRemoveMember = (member: FamilyMember) => {
+    setMemberToRemove(member)
+    setShowRemoveMemberDialog(true)
   }
 
   const renderFamilyIcon = (icon?: string) => {
@@ -382,6 +428,19 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
                       <div className="text-xs text-muted-foreground sm:hidden">
                         {formatDate(member.created_at).split(',')[0]}
                       </div>
+                      {/* Remove member button - only show for non-owner members */}
+                      {member.user_id !== group.owner_id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveMember(member)}
+                          disabled={!isOnline}
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
+                          title="Remove member"
+                        >
+                          <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -534,6 +593,48 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
                 disabled={isDeleting}
               >
                 {isDeleting ? 'Deleting...' : 'Delete Family'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Remove Member Confirmation Dialog */}
+        <Dialog open={showRemoveMemberDialog} onOpenChange={setShowRemoveMemberDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-600">
+                <AlertTriangle className="h-5 w-5" />
+                Remove Family Member
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to remove{' '}
+                <strong>
+                  {memberToRemove?.email || `User ${memberToRemove?.user_id.slice(0, 8)}...`}
+                </strong>{' '}
+                from "{group.name}"?
+                <br />
+                <br />
+                They will lose access to all family data including lists, documents, events, and cards.
+                They can be re-invited later if needed.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowRemoveMemberDialog(false)
+                  setMemberToRemove(null)
+                }}
+                disabled={isRemovingMember}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={removeMember}
+                disabled={isRemovingMember}
+              >
+                {isRemovingMember ? 'Removing...' : 'Remove Member'}
               </Button>
             </DialogFooter>
           </DialogContent>
