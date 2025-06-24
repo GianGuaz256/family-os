@@ -6,31 +6,34 @@ export default function Document() {
       <Head>
         {/* PWA Meta Tags */}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-        <meta name="theme-color" content="#2563eb" />
         <meta name="background-color" content="#ffffff" />
-        
-        {/* PWA Manifest */}
-        <link rel="manifest" href="/manifest.json" />
-        
-        {/* Apple PWA Meta Tags */}
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Family OS" />
         <meta name="format-detection" content="telephone=no" />
         
-        {/* Apple Touch Icons */}
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-        <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-touch-icon-152x152.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180x180.png" />
-        <link rel="apple-touch-icon" sizes="167x167" href="/icons/apple-touch-icon-167x167.png" />
-        
-        {/* Standard Icons */}
-        <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
+        {/* Generated Favicons - Professional Setup */}
+        <link rel="icon" type="image/x-icon" href="/icons/favicon.ico" />
         <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
-        <link rel="shortcut icon" href="/icons/favicon.ico" />
-        
-        {/* Microsoft PWA Meta Tags */}
-        <meta name="msapplication-TileColor" content="#2563eb" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48x48.png" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#2563eb" />
+        <meta name="application-name" content="Family OS" />
+        <link rel="apple-touch-icon" sizes="57x57" href="/icons/apple-touch-icon-57x57.png" />
+        <link rel="apple-touch-icon" sizes="60x60" href="/icons/apple-touch-icon-60x60.png" />
+        <link rel="apple-touch-icon" sizes="72x72" href="/icons/apple-touch-icon-72x72.png" />
+        <link rel="apple-touch-icon" sizes="76x76" href="/icons/apple-touch-icon-76x76.png" />
+        <link rel="apple-touch-icon" sizes="114x114" href="/icons/apple-touch-icon-114x114.png" />
+        <link rel="apple-touch-icon" sizes="120x120" href="/icons/apple-touch-icon-120x120.png" />
+        <link rel="apple-touch-icon" sizes="144x144" href="/icons/apple-touch-icon-144x144.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-touch-icon-152x152.png" />
+        <link rel="apple-touch-icon" sizes="167x167" href="/icons/apple-touch-icon-167x167.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180x180.png" />
+        <link rel="apple-touch-icon" sizes="1024x1024" href="/icons/apple-touch-icon-1024x1024.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="FamilyOS" />
+        <meta name="msapplication-TileColor" content="#ffffff" />
+        <meta name="msapplication-TileImage" content="/icons/mstile-144x144.png" />
         <meta name="msapplication-config" content="/icons/browserconfig.xml" />
         
         {/* PWA Description */}
@@ -42,13 +45,13 @@ export default function Document() {
         <meta property="og:type" content="website" />
         <meta property="og:title" content="Family OS - Family Management PWA" />
         <meta property="og:description" content="A collaborative family management PWA for organizing your family's daily life" />
-        <meta property="og:image" content="/icons/og-image.png" />
+        <meta property="og:image" content="/icons/android-chrome-512x512.png" />
         
         {/* Twitter Card Meta Tags */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Family OS - Family Management PWA" />
         <meta name="twitter:description" content="A collaborative family management PWA for organizing your family's daily life" />
-        <meta name="twitter:image" content="/icons/twitter-image.png" />
+        <meta name="twitter:image" content="/icons/android-chrome-512x512.png" />
         
         {/* Preconnect for performance */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />

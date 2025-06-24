@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -37,6 +37,20 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
   const [newDocName, setNewDocName] = useState('')
   const [newDocUrl, setNewDocUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+
+  // Listen for custom events from BottomActions
+  useEffect(() => {
+    const handleOpenModal = (event: CustomEvent) => {
+      if (event.detail.type === 'document') {
+        setShowCreateModal(true)
+      }
+    }
+
+    window.addEventListener('openCreateModal', handleOpenModal as EventListener)
+    return () => {
+      window.removeEventListener('openCreateModal', handleOpenModal as EventListener)
+    }
+  }, [])
 
   const addDocument = async () => {
     if (!newDocName.trim() || !newDocUrl.trim() || !isOnline) return
@@ -98,9 +112,9 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
   }
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Family Documents</h2>
+        <h2 className="text-2xl font-bold">Documents</h2>
       </div>
 
       {documents.length === 0 ? (
@@ -114,30 +128,32 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {documents.map((doc) => (
-            <Card key={doc.id} className="hover:shadow-xl transition-all duration-200 cursor-pointer">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <FileText className="h-8 w-8 text-primary-600 flex-shrink-0" />
+            <Card key={doc.id} className="group hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                      <FileText className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-lg leading-tight">{doc.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Added {new Date(doc.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => deleteDocument(doc.id)}
                     disabled={!isOnline}
-                    className="text-red-600 hover:text-red-700 px-2"
+                    className="opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive/90 transition-opacity"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-                
-                <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">
-                  {doc.name}
-                </h3>
-                
-                <p className="text-xs text-gray-500 mb-3">
-                  Added {formatDate(doc.created_at)}
-                </p>
                 
                 {isOnline ? (
                   <a
@@ -159,18 +175,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
           ))}
         </div>
       )}
-
-      {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <Button 
-          onClick={() => setShowCreateModal(true)}
-          disabled={!isOnline}
-          size="lg"
-          className="rounded-full h-14 w-14 shadow-lg hover:shadow-xl transition-all duration-200"
-        >
-          <Plus className="h-6 w-6" />
-        </Button>
-      </div>
 
       <Dialog
         open={showCreateModal}

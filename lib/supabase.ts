@@ -104,6 +104,13 @@ export type Database = {
           group_id: string
           title: string
           date: string
+          start_datetime?: string
+          end_datetime?: string
+          event_type: 'single' | 'recurring' | 'range'
+          recurrence_pattern?: 'daily' | 'weekly' | 'monthly' | 'yearly'
+          recurrence_interval?: number
+          recurrence_end_date?: string
+          description?: string
           created_at: string
         }
         Insert: {
@@ -111,6 +118,13 @@ export type Database = {
           group_id: string
           title: string
           date: string
+          start_datetime?: string
+          end_datetime?: string
+          event_type?: 'single' | 'recurring' | 'range'
+          recurrence_pattern?: 'daily' | 'weekly' | 'monthly' | 'yearly'
+          recurrence_interval?: number
+          recurrence_end_date?: string
+          description?: string
           created_at?: string
         }
         Update: {
@@ -118,6 +132,81 @@ export type Database = {
           group_id?: string
           title?: string
           date?: string
+          start_datetime?: string
+          end_datetime?: string
+          event_type?: 'single' | 'recurring' | 'range'
+          recurrence_pattern?: 'daily' | 'weekly' | 'monthly' | 'yearly'
+          recurrence_interval?: number
+          recurrence_end_date?: string
+          description?: string
+          created_at?: string
+        }
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          group_id: string
+          title: string
+          provider?: string
+          cost: number
+          currency: string
+          billing_cycle: 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+          billing_day?: number
+          payer_id?: string
+          category?: 'streaming' | 'utilities' | 'insurance' | 'software' | 'fitness' | 'food' | 'transport' | 'gaming' | 'news' | 'cloud' | 'other'
+          payment_method?: string
+          next_payment_date: string
+          start_date: string
+          end_date?: string
+          auto_renew: boolean
+          notify_days_before: number
+          is_active: boolean
+          description?: string
+          website_url?: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          group_id: string
+          title: string
+          provider?: string
+          cost: number
+          currency?: string
+          billing_cycle: 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+          billing_day?: number
+          payer_id?: string
+          category?: 'streaming' | 'utilities' | 'insurance' | 'software' | 'fitness' | 'food' | 'transport' | 'gaming' | 'news' | 'cloud' | 'other'
+          payment_method?: string
+          next_payment_date: string
+          start_date: string
+          end_date?: string
+          auto_renew?: boolean
+          notify_days_before?: number
+          is_active?: boolean
+          description?: string
+          website_url?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          group_id?: string
+          title?: string
+          provider?: string
+          cost?: number
+          currency?: string
+          billing_cycle?: 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+          billing_day?: number
+          payer_id?: string
+          category?: 'streaming' | 'utilities' | 'insurance' | 'software' | 'fitness' | 'food' | 'transport' | 'gaming' | 'news' | 'cloud' | 'other'
+          payment_method?: string
+          next_payment_date?: string
+          start_date?: string
+          end_date?: string
+          auto_renew?: boolean
+          notify_days_before?: number
+          is_active?: boolean
+          description?: string
+          website_url?: string
           created_at?: string
         }
       }

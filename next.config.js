@@ -13,8 +13,10 @@ const nextConfig = {
     domains: ["localhost"],
   },
   experimental: {
-    appDir: true,
+    // appDir is no longer needed in Next.js 14
   },
+  // Enable standalone output for Docker optimization
+  output: "standalone",
 };
 
 module.exports = withPWA(nextConfig);

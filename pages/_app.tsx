@@ -151,21 +151,21 @@ export default function App({ Component, pageProps }: AppProps) {
         <div className="install-prompt">
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1">
-              <h3 className="font-semibold text-sm">Install Family OS</h3>
+              <h3 className="font-semibold text-md mb-2">Install Family OS</h3>
               <p className="text-xs opacity-90">Add to home screen for quick access</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleInstallClick}
+                className="px-3 py-1 text-xs rounded-full text-primary bg-primary-foreground hover:bg-white hover:text-primary-foreground transition-colors"
+              >
+                Install
+              </button>
               <button
                 onClick={handleInstallDismiss}
                 className="px-3 py-1 text-xs rounded-full bg-white/20 hover:bg-white/30 transition-colors"
               >
                 Later
-              </button>
-              <button
-                onClick={handleInstallClick}
-                className="px-3 py-1 text-xs rounded-full bg-white/90 text-primary hover:bg-white transition-colors"
-              >
-                Install
               </button>
             </div>
           </div>

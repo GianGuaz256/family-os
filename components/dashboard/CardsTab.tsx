@@ -1,9 +1,10 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import Webcam from 'react-webcam'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
+import { Card, CardContent } from '../ui/card'
 import {
   Dialog,
   DialogContent,
@@ -41,11 +42,12 @@ export const CardsTab: React.FC<CardsTabProps> = ({
   const [showScanModal, setShowScanModal] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showFullscreenCard, setShowFullscreenCard] = useState<LoyaltyCard | null>(null)
-  const [editingCard, setEditingCard] = useState<LoyaltyCard | null>(null)
-  const [isScanning, setIsScanning] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
-  const [extractionResults, setExtractionResults] = useState<string | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [editingCard, setEditingCard] = useState<LoyaltyCard | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [stream, setStream] = useState<MediaStream | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     brand: '',
@@ -58,6 +60,22 @@ export const CardsTab: React.FC<CardsTabProps> = ({
 
   const webcamRef = useRef<Webcam>(null)
 
+  // Listen for custom events from BottomActions
+  useEffect(() => {
+    const handleOpenModal = (event: CustomEvent) => {
+      if (event.detail.type === 'card') {
+        setShowAddModal(true)
+      } else if (event.detail.type === 'scan') {
+        setShowScanModal(true)
+      }
+    }
+
+    window.addEventListener('openCreateModal', handleOpenModal as EventListener)
+    return () => {
+      window.removeEventListener('openCreateModal', handleOpenModal as EventListener)
+    }
+  }, [])
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -69,7 +87,6 @@ export const CardsTab: React.FC<CardsTabProps> = ({
       notes: ''
     })
     setCapturedImage(null)
-    setExtractionResults(null)
     setEditingCard(null)
     setShowFullscreenCard(null)
   }
@@ -78,14 +95,12 @@ export const CardsTab: React.FC<CardsTabProps> = ({
     const imageSrc = webcamRef.current?.getScreenshot()
     if (imageSrc) {
       setCapturedImage(imageSrc)
-      setIsScanning(false)
       processImageWithAI(imageSrc)
     }
   }, [webcamRef])
 
   const processImageWithAI = async (imageData: string) => {
     setIsProcessing(true)
-    setExtractionResults(null)
     
     try {
       // Check if we have API route available
@@ -116,14 +131,10 @@ export const CardsTab: React.FC<CardsTabProps> = ({
           ...prev,
           ...result.cardInfo
         }))
-        setExtractionResults(`Successfully extracted: ${Object.keys(result.cardInfo).join(', ')}`)
-      } else {
-        setExtractionResults('No card information could be extracted from this image. Please fill in the details manually.')
       }
 
     } catch (error) {
       console.error('AI processing error:', error)
-      setExtractionResults(`${error instanceof Error ? error.message : 'Failed to analyze image'}. You can still fill in the card details manually.`)
       
       // Set a basic fallback name so users can still save the card
       if (!formData.name) {
@@ -208,8 +219,22 @@ export const CardsTab: React.FC<CardsTabProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } 
+      })
+      setStream(mediaStream)
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream
+      }
+    } catch (error) {
+      console.error('Error accessing camera:', error)
+    }
+  }
+
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Loyalty Cards</h2>
       </div>
@@ -221,24 +246,29 @@ export const CardsTab: React.FC<CardsTabProps> = ({
             No cards yet
           </h3>
           <p className="text-muted-foreground mb-4">
-            Scan or add your first loyalty card to get started
+            Add your first loyalty card to get started
           </p>
         </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {cards.map((card) => (
-            <div key={card.id} className="cursor-pointer">
-              <VirtualCard
-                name={card.name}
-                brand={card.brand}
-                cardNumber={card.card_number}
-                barcode={card.barcode}
-                pointsBalance={card.points_balance}
-                expiryDate={card.expiry_date}
-                size="small"
-                onClick={() => setShowFullscreenCard(card)}
-              />
-            </div>
+            <Card 
+              key={card.id} 
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => setShowFullscreenCard(card)}
+            >
+              <CardContent className="p-6">
+                <VirtualCard
+                  name={card.name}
+                  brand={card.brand}
+                  cardNumber={card.card_number}
+                  barcode={card.barcode}
+                  pointsBalance={card.points_balance}
+                  expiryDate={card.expiry_date}
+                  size="small"
+                />
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
@@ -247,181 +277,120 @@ export const CardsTab: React.FC<CardsTabProps> = ({
       <Dialog
         open={showScanModal}
         onOpenChange={(open) => {
+          setShowScanModal(open)
           if (!open) {
-            setShowScanModal(false)
-            setIsScanning(false)
+            if (stream) {
+              stream.getTracks().forEach(track => track.stop())
+              setStream(null)
+            }
             setCapturedImage(null)
-            resetForm()
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Scan Loyalty Card</DialogTitle>
           </DialogHeader>
         <div className="space-y-4">
           {!capturedImage ? (
             <div className="space-y-4">
-              {isScanning ? (
-                <div className="relative">
-                  <Webcam
-                    ref={webcamRef}
-                    audio={false}
-                    screenshotFormat="image/jpeg"
-                    className="w-full rounded-lg"
-                    videoConstraints={{
-                      facingMode: "environment"
-                    }}
-                  />
-                  <div className="flex justify-center space-x-2 mt-4">
-                    <Button onClick={captureImage}>
-                      <Camera className="h-4 w-4 mr-2" />
-                      Capture
-                    </Button>
-                    <Button 
-                      variant="secondary" 
-                      onClick={() => setIsScanning(false)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <div className="text-4xl mb-4">📷</div>
-                  <h3 className="font-semibold mb-2">AI Card Scanner</h3>
-                  <p className="text-gray-600 mb-4">
-                    Uses AI to detect and extract information from:
-                  </p>
-                  <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
-                    <div className="text-center p-3 bg-blue-50 rounded-lg">
-                      <Brain className="h-6 w-6 mx-auto mb-1 text-blue-500" />
-                      <div className="font-medium">Barcodes</div>
-                      <div className="text-xs text-gray-600">Member numbers</div>
-                    </div>
-                    <div className="text-center p-3 bg-green-50 rounded-lg">
-                      <CreditCard className="h-6 w-6 mx-auto mb-1 text-green-500" />
-                      <div className="font-medium">Card Info</div>
-                      <div className="text-xs text-gray-600">Brand, points, expiry</div>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Position your card clearly with good lighting for best results
-                  </p>
-                  <Button onClick={() => setIsScanning(true)}>
-                    <Camera className="h-4 w-4 mr-2" />
-                    Start Scanner
-                  </Button>
-                </div>
-              )}
+              <video
+                ref={videoRef}
+                className="w-full h-64 bg-black rounded-lg"
+                autoPlay
+                playsInline
+              />
+              <div className="flex gap-2">
+                <Button onClick={startCamera} className="flex-1">
+                  Start Camera
+                </Button>
+                <Button onClick={captureImage} variant="secondary">
+                  Capture
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowScanModal(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="text-center">
-                <img 
-                  src={capturedImage} 
-                  alt="Captured card" 
-                  className="w-full max-w-sm mx-auto rounded-lg border-2 border-gray-200"
-                />
-                
-                {isProcessing ? (
-                  <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                    <div className="flex items-center justify-center space-x-2 mb-2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                      <Brain className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <p className="text-sm font-medium text-blue-800">AI analyzing your card...</p>
-                    <p className="text-xs text-blue-600 mt-1">Extracting barcodes, text, and information</p>
-                  </div>
-                ) : extractionResults && (
-                  <div className={`mt-4 p-3 rounded-lg ${
-                    extractionResults.startsWith('Error') 
-                      ? 'bg-red-50 border border-red-200' 
-                      : extractionResults.includes('No card information')
-                      ? 'bg-yellow-50 border border-yellow-200'
-                      : 'bg-green-50 border border-green-200'
-                  }`}>
-                    <h4 className={`font-semibold mb-1 ${
-                      extractionResults.startsWith('Error') 
-                        ? 'text-red-800' 
-                        : extractionResults.includes('No card information')
-                        ? 'text-yellow-800'
-                        : 'text-green-800'
-                    }`}>
-                      Analysis Results:
-                    </h4>
-                    <p className={`text-sm ${
-                      extractionResults.startsWith('Error') 
-                        ? 'text-red-700' 
-                        : extractionResults.includes('No card information')
-                        ? 'text-yellow-700'
-                        : 'text-green-700'
-                    }`}>
-                      {extractionResults}
-                    </p>
-                  </div>
-                )}
-              </div>
+              <img
+                src={capturedImage}
+                alt="Captured card"
+                className="w-full h-64 object-cover rounded-lg"
+              />
               
-              <div className="space-y-3">
+              {isProcessing && (
+                <div className="text-center p-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">
+                    Processing image...
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="card-name">Card Name *</Label>
+                  <Label htmlFor="scan-card-name">Card Name</Label>
                   <Input
-                    id="card-name"
+                    id="scan-card-name"
                     value={formData.name}
                     onChange={(e) => handleFormChange('name', e.target.value)}
-                    placeholder="e.g., Tesco Clubcard, Starbucks Card"
+                    placeholder="Store or brand name"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="brand">Brand</Label>
+                  <Label htmlFor="scan-brand">Brand</Label>
                   <Input
-                    id="brand"
+                    id="scan-brand"
                     value={formData.brand}
                     onChange={(e) => handleFormChange('brand', e.target.value)}
-                    placeholder="e.g., Tesco, Starbucks"
+                    placeholder="Brand name"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="card-number">Card Number</Label>
+                  <Label htmlFor="scan-card-number">Card Number</Label>
                   <Input
-                    id="card-number"
+                    id="scan-card-number"
                     value={formData.card_number}
                     onChange={(e) => handleFormChange('card_number', e.target.value)}
                     placeholder="Member/card number"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="barcode">Barcode</Label>
+                  <Label htmlFor="scan-barcode">Barcode</Label>
                   <Input
-                    id="barcode"
+                    id="scan-barcode"
                     value={formData.barcode}
                     onChange={(e) => handleFormChange('barcode', e.target.value)}
-                    placeholder="Barcode number (if different from card number)"
+                    placeholder="Barcode number"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="points">Points Balance</Label>
+                  <Label htmlFor="scan-points">Points Balance</Label>
                   <Input
-                    id="points"
+                    id="scan-points"
                     value={formData.points_balance}
                     onChange={(e) => handleFormChange('points_balance', e.target.value)}
                     placeholder="Current points/balance"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="expiry">Expiry Date</Label>
+                  <Label htmlFor="scan-expiry">Expiry Date</Label>
                   <Input
-                    id="expiry"
+                    id="scan-expiry"
                     value={formData.expiry_date}
                     onChange={(e) => handleFormChange('expiry_date', e.target.value)}
                     placeholder="MM/YY or MM/YYYY"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
+                  <Label htmlFor="scan-notes">Notes</Label>
                   <Input
-                    id="notes"
+                    id="scan-notes"
                     value={formData.notes}
                     onChange={(e) => handleFormChange('notes', e.target.value)}
                     placeholder="Additional notes or benefits"
@@ -469,75 +438,75 @@ export const CardsTab: React.FC<CardsTabProps> = ({
       <Dialog
         open={showAddModal}
         onOpenChange={(open) => {
+          setShowAddModal(open)
           if (!open) {
-            setShowAddModal(false)
             resetForm()
           }
         }}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingCard ? "Edit Card" : "Add Card Manually"}</DialogTitle>
+            <DialogTitle>{editingCard ? "Edit Card" : "Add New Card"}</DialogTitle>
           </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="edit-card-name">Card Name *</Label>
+            <Label htmlFor="manual-card-name">Card Name *</Label>
             <Input
-              id="edit-card-name"
+              id="manual-card-name"
               value={formData.name}
               onChange={(e) => handleFormChange('name', e.target.value)}
-              placeholder="e.g., Tesco Clubcard, Starbucks Card"
+              placeholder="Store or brand name"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="edit-brand">Brand</Label>
+            <Label htmlFor="manual-brand">Brand</Label>
             <Input
-              id="edit-brand"
+              id="manual-brand"
               value={formData.brand}
               onChange={(e) => handleFormChange('brand', e.target.value)}
-              placeholder="e.g., Tesco, Starbucks"
+              placeholder="Brand name"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="edit-card-number">Card Number</Label>
+            <Label htmlFor="manual-card-number">Card Number</Label>
             <Input
-              id="edit-card-number"
+              id="manual-card-number"
               value={formData.card_number}
               onChange={(e) => handleFormChange('card_number', e.target.value)}
               placeholder="Member/card number"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="edit-barcode">Barcode</Label>
+            <Label htmlFor="manual-barcode">Barcode</Label>
             <Input
-              id="edit-barcode"
+              id="manual-barcode"
               value={formData.barcode}
               onChange={(e) => handleFormChange('barcode', e.target.value)}
               placeholder="Barcode number"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="edit-points">Points Balance</Label>
+            <Label htmlFor="manual-points">Points Balance</Label>
             <Input
-              id="edit-points"
+              id="manual-points"
               value={formData.points_balance}
               onChange={(e) => handleFormChange('points_balance', e.target.value)}
               placeholder="Current points/balance"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="edit-expiry">Expiry Date</Label>
+            <Label htmlFor="manual-expiry">Expiry Date</Label>
             <Input
-              id="edit-expiry"
+              id="manual-expiry"
               value={formData.expiry_date}
               onChange={(e) => handleFormChange('expiry_date', e.target.value)}
               placeholder="MM/YY or MM/YYYY"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="edit-notes">Notes</Label>
+            <Label htmlFor="manual-notes">Notes</Label>
             <Input
-              id="edit-notes"
+              id="manual-notes"
               value={formData.notes}
               onChange={(e) => handleFormChange('notes', e.target.value)}
               placeholder="Additional notes or benefits"
@@ -677,27 +646,6 @@ export const CardsTab: React.FC<CardsTabProps> = ({
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Floating Action Buttons */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
-        <Button 
-          onClick={() => setShowScanModal(true)}
-          disabled={!isOnline}
-          size="lg"
-          variant="secondary"
-          className="rounded-full h-12 w-12 shadow-lg hover:shadow-xl transition-all duration-200"
-        >
-          <Camera className="h-5 w-5" />
-        </Button>
-        <Button 
-          onClick={() => setShowAddModal(true)}
-          disabled={!isOnline}
-          size="lg"
-          className="rounded-full h-14 w-14 shadow-lg hover:shadow-xl transition-all duration-200"
-        >
-          <Plus className="h-6 w-6" />
-        </Button>
-      </div>
     </div>
   )
 } 

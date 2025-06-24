@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -43,6 +43,20 @@ export const ListsTab: React.FC<ListsTabProps> = ({
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newListTitle, setNewListTitle] = useState('')
   const [newItems, setNewItems] = useState<{[listId: string]: string}>({})
+
+  // Listen for custom events from BottomActions
+  useEffect(() => {
+    const handleOpenModal = (event: CustomEvent) => {
+      if (event.detail.type === 'list') {
+        setShowCreateModal(true)
+      }
+    }
+
+    window.addEventListener('openCreateModal', handleOpenModal as EventListener)
+    return () => {
+      window.removeEventListener('openCreateModal', handleOpenModal as EventListener)
+    }
+  }, [])
 
   const createList = async () => {
     if (!newListTitle.trim() || !isOnline) return
@@ -149,9 +163,9 @@ export const ListsTab: React.FC<ListsTabProps> = ({
   }
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Family Lists</h2>
+        <h2 className="text-2xl font-bold">Lists</h2>
       </div>
 
       {lists.length === 0 ? (
@@ -241,18 +255,6 @@ export const ListsTab: React.FC<ListsTabProps> = ({
           ))}
         </div>
       )}
-
-      {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <Button 
-          onClick={() => setShowCreateModal(true)}
-          disabled={!isOnline}
-          size="lg"
-          className="rounded-full h-14 w-14 shadow-lg hover:shadow-xl transition-all duration-200"
-        >
-          <Plus className="h-6 w-6" />
-        </Button>
-      </div>
 
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
         <DialogContent>

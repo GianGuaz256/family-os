@@ -78,7 +78,7 @@ module.exports = {
         3: "3px",
       },
       animation: {
-        gradient: "gradient 3s ease infinite",
+        gradient: "gradient var(--animation-duration, 8s) linear infinite",
         "fade-in": "fadeIn 0.5s ease-in-out",
         "slide-up": "slideUp 0.3s ease-out",
         "bounce-subtle": "bounceSubtle 0.6s ease-in-out",

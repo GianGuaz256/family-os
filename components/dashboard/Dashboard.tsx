@@ -2,28 +2,40 @@ import React, { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { ThemeSwitcher } from '../ui/ThemeSwitcher'
+import { BottomActions } from '../ui/BottomActions'
 import { ListsTab } from './ListsTab'
 import { DocumentsTab } from './DocumentsTab'
 import { EventsTab } from './EventsTab'
 import { CardsTab } from './CardsTab'
+import { SubscriptionsTab } from './SubscriptionsTab'
+import { SettingsTab } from './SettingsTab'
 import { 
   List, 
   FileText, 
   Calendar, 
   CreditCard, 
+  DollarSign,
   LogOut, 
   ArrowLeft, 
   ChevronDown,
   Home,
   Users,
   Plus,
-  Settings
+  Settings,
+  Camera,
+  Heart,
+  Star,
+  TreePine,
+  Flower,
+  Sun,
+  Moon
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import { Alert, AlertDescription } from '../ui/alert'
 import { Avatar, AvatarFallback } from '../ui/avatar'
 import { Card, CardContent } from '../ui/card'
+import { Skeleton } from '../ui/skeleton'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +51,7 @@ interface FamilyGroup {
   name: string
   owner_id: string
   invite_code: string
+  icon?: string
 }
 
 interface DashboardProps {
@@ -50,7 +63,7 @@ interface DashboardProps {
   isOnline: boolean
 }
 
-type AppView = 'home' | 'lists' | 'documents' | 'events' | 'cards'
+type AppView = 'home' | 'lists' | 'documents' | 'events' | 'cards' | 'subscriptions' | 'settings'
 
 export const Dashboard: React.FC<DashboardProps> = ({
   user,
@@ -65,22 +78,39 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [documents, setDocuments] = useState<any[]>([])
   const [events, setEvents] = useState<any[]>([])
   const [cards, setCards] = useState<any[]>([])
+  const [subscriptions, setSubscriptions] = useState<any[]>([])
   const [allGroups, setAllGroups] = useState<FamilyGroup[]>([])
+  const [isLoadingData, setIsLoadingData] = useState(true)
+  const [isSwitchingFamily, setIsSwitchingFamily] = useState(false)
 
   useEffect(() => {
-    try {
-      if (isOnline) {
-        fetchData()
-        fetchAllGroups()
-        setupRealtimeSubscriptions()
+    let cleanup: (() => void) | undefined
+
+    const initialize = async () => {
+      try {
+        if (isOnline) {
+          await fetchData()
+          await fetchAllGroups()
+          cleanup = setupRealtimeSubscriptions()
+        }
+      } catch (error) {
+        console.error('Dashboard useEffect error:', error)
       }
-    } catch (error) {
-      console.error('Dashboard useEffect error:', error)
+    }
+
+    initialize()
+
+    return () => {
+      if (cleanup) {
+        cleanup()
+      }
     }
   }, [group.id, isOnline])
 
   const fetchData = async () => {
     try {
+      setIsLoadingData(true)
+      
       // Fetch lists
       const { data: listsData } = await supabase
         .from('lists')
@@ -108,13 +138,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
         .select('*')
         .eq('group_id', group.id)
         .order('created_at', { ascending: false })
+      
+      // Fetch subscriptions
+      const { data: subscriptionsData } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('group_id', group.id)
+        .order('created_at', { ascending: false })
 
       setLists(listsData || [])
       setDocuments(documentsData || [])
       setEvents(eventsData || [])
       setCards(cardsData || [])
+      setSubscriptions(subscriptionsData || [])
     } catch (error) {
       console.error('Error fetching data:', error)
+    } finally {
+      setIsLoadingData(false)
+      setIsSwitchingFamily(false)
     }
   }
 
@@ -127,7 +168,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             id,
             name,
             owner_id,
-            invite_code
+            invite_code,
+            icon
           )
         `)
         .eq('user_id', user.id)
@@ -145,8 +187,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }
 
   const setupRealtimeSubscriptions = () => {
+    // Remove any existing channel with the same name first
+    const channelName = `family-updates-${group.id}`
+    const existingChannel = supabase.getChannels().find(ch => ch.topic === `realtime:${channelName}`)
+    if (existingChannel) {
+      supabase.removeChannel(existingChannel)
+    }
+
     const channel = supabase
-      .channel('family-updates')
+      .channel(channelName)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'lists', filter: `group_id=eq.${group.id}` },
         () => fetchData()
@@ -163,6 +212,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         { event: '*', schema: 'public', table: 'cards', filter: `group_id=eq.${group.id}` },
         () => fetchData()
       )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'subscriptions', filter: `group_id=eq.${group.id}` },
+        () => fetchData()
+      )
       .subscribe()
 
     return () => {
@@ -171,11 +224,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }
 
   const handleGroupSwitch = async (newGroup: FamilyGroup) => {
+    setIsSwitchingFamily(true)
     if (onSwitchFamily) {
       onSwitchFamily(newGroup)
     } else {
       // Fallback - refresh page
       window.location.reload()
+    }
+  }
+
+  const renderFamilyIcon = (icon?: string) => {
+    const currentIcon = icon || '🏠'
+    
+    if (currentIcon.startsWith('lucide:')) {
+      const iconName = currentIcon.replace('lucide:', '')
+      const iconMap: { [key: string]: any } = {
+        'Home': Home,
+        'Heart': Heart,
+        'Star': Star,
+        'Tree': TreePine,
+        'Flower': Flower,
+        'Sun': Sun,
+        'Moon': Moon
+      }
+      const LucideIcon = iconMap[iconName] || Home
+      return <LucideIcon className="h-6 w-6 text-white" />
+    } else if (currentIcon.startsWith('http')) {
+      return <img src={currentIcon} alt="Family icon" className="h-6 w-6 rounded object-cover" />
+    } else {
+      return <span className="text-xl">{currentIcon}</span>
     }
   }
 
@@ -211,6 +288,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
       color: 'from-orange-400 to-orange-600',
       count: cards.length,
       description: 'Loyalty Cards'
+    },
+    {
+      id: 'subscriptions' as const,
+      name: 'Subscriptions',
+      icon: DollarSign,
+      color: 'from-pink-400 to-pink-600',
+      count: subscriptions.length,
+      description: 'Family Plans'
     }
   ]
 
@@ -230,53 +315,89 @@ export const Dashboard: React.FC<DashboardProps> = ({
     })
   }
 
+  // Get contextual actions based on current view
+  const getContextualActions = () => {
+    const actions = []
+    
+    switch (currentView) {
+      case 'lists':
+        actions.push({
+          icon: Plus,
+          label: 'Create New List',
+          onClick: () => {
+            // This will be handled by the ListsTab component's state
+            const event = new CustomEvent('openCreateModal', { detail: { type: 'list' } })
+            window.dispatchEvent(event)
+          },
+          disabled: !isOnline
+        })
+        break
+      case 'documents':
+        actions.push({
+          icon: Plus,
+          label: 'Add Document',
+          onClick: () => {
+            const event = new CustomEvent('openCreateModal', { detail: { type: 'document' } })
+            window.dispatchEvent(event)
+          },
+          disabled: !isOnline
+        })
+        break
+      case 'events':
+        actions.push({
+          icon: Plus,
+          label: 'Add Event',
+          onClick: () => {
+            const event = new CustomEvent('openCreateModal', { detail: { type: 'event' } })
+            window.dispatchEvent(event)
+          },
+          disabled: !isOnline
+        })
+        break
+      case 'cards':
+        actions.push(
+          {
+            icon: Camera,
+            label: 'Scan Card',
+            onClick: () => {
+              const event = new CustomEvent('openCreateModal', { detail: { type: 'scan' } })
+              window.dispatchEvent(event)
+            },
+            variant: 'secondary' as const,
+            disabled: !isOnline
+          },
+          {
+            icon: Plus,
+            label: 'Add Card',
+            onClick: () => {
+              const event = new CustomEvent('openCreateModal', { detail: { type: 'card' } })
+              window.dispatchEvent(event)
+            },
+            disabled: !isOnline
+          }
+        )
+        break
+      case 'subscriptions':
+        actions.push({
+          icon: Plus,
+          label: 'Add Subscription',
+          onClick: () => {
+            const event = new CustomEvent('openCreateModal', { detail: { type: 'subscription' } })
+            window.dispatchEvent(event)
+          },
+          disabled: !isOnline
+        })
+        break
+    }
+    
+    return actions
+  }
+
   if (currentView !== 'home') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        {/* App View Header */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-white/20 sticky top-0 z-50">
-          <div className="flex items-center justify-between p-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setCurrentView('home')}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Home
-            </Button>
-            
-            <div className="flex items-center gap-2">
-              <ThemeSwitcher size="sm" showLabel={false} />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {user.email?.[0].toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onLeaveGroup}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Switch Family
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-
         {/* App Content */}
-        <div className="p-4">
+        <div className="p-4 pb-32">
           {currentView === 'lists' && (
             <ListsTab 
               lists={lists} 
@@ -295,7 +416,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           )}
           {currentView === 'events' && (
             <EventsTab 
-              events={events} 
+              events={events}
+              subscriptions={subscriptions}
               groupId={group.id} 
               onUpdate={fetchData}
               isOnline={isOnline}
@@ -309,7 +431,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
               isOnline={isOnline}
             />
           )}
+          {currentView === 'subscriptions' && (
+            <SubscriptionsTab 
+              subscriptions={subscriptions} 
+              groupId={group.id} 
+              onUpdate={fetchData}
+              isOnline={isOnline}
+              currentUser={user}
+            />
+          )}
+          {currentView === 'settings' && (
+            <SettingsTab 
+              user={user}
+              isOnline={isOnline}
+            />
+          )}
         </div>
+
+        {/* Bottom Actions for App Views */}
+        <BottomActions
+          user={user}
+          onHome={() => setCurrentView('home')}
+          onSettings={() => setCurrentView('settings')}
+          onLogout={onLogout}
+          onManageFamilies={onLeaveGroup}
+          contextualActions={getContextualActions()}
+          isHome={false}
+        />
       </div>
     )
   }
@@ -332,16 +480,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-600 rounded-xl flex items-center justify-center">
-                      <Users className="h-6 w-6 text-white" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-600 rounded-xl flex items-center justify-center relative">
+                      {isSwitchingFamily ? (
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                      ) : (
+                        renderFamilyIcon(group.icon)
+                      )}
                     </div>
                     <div>
                       <div className="font-semibold text-lg">{group.name}</div>
-                      <div className="text-sm text-muted-foreground">Current Family</div>
+                      <div className="text-sm text-muted-foreground">
+                        {isSwitchingFamily ? 'Switching family...' : 'Current Family'}
+                      </div>
                     </div>
                   </div>
                   
-                  {allGroups.length > 1 && (
+                  {allGroups.length > 1 && !isSwitchingFamily && (
                     <ChevronDown className="h-5 w-5 text-muted-foreground" />
                   )}
                 </div>
@@ -349,26 +503,47 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </Card>
           </DropdownMenuTrigger>
           
-          {allGroups.length > 1 && (
-            <DropdownMenuContent align="center" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+          {allGroups.length > 1 && !isSwitchingFamily && (
+            <DropdownMenuContent align="center" className="w-[var(--radix-dropdown-menu-trigger-width)] bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-2xl">
               {allGroups.map((familyGroup) => (
                 <DropdownMenuItem 
                   key={familyGroup.id}
                   onClick={() => handleGroupSwitch(familyGroup)}
-                  disabled={familyGroup.id === group.id}
+                  disabled={familyGroup.id === group.id || isSwitchingFamily}
                   className={cn(
-                    "cursor-pointer",
-                    familyGroup.id === group.id && "bg-primary text-primary-foreground font-medium"
+                    "cursor-pointer p-4 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors duration-200",
+                    familyGroup.id === group.id && "bg-primary/10 text-primary font-medium border-l-4 border-primary"
                   )}
                 >
-                  <Users className="mr-2 h-4 w-4" />
-                  {familyGroup.name}
+                  <div className="flex items-center gap-3 w-full">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+                      <div className="scale-90">
+                        {renderFamilyIcon(familyGroup.icon)}
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-base truncate">{familyGroup.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {familyGroup.id === group.id ? 'Current Family' : 'Switch to this family'}
+                      </div>
+                    </div>
+                  </div>
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onLeaveGroup}>
-                <Plus className="mr-2 h-4 w-4" />
-                Manage Families
+              <DropdownMenuSeparator className="bg-white/20 dark:bg-white/10" />
+              <DropdownMenuItem 
+                onClick={onLeaveGroup}
+                className="cursor-pointer p-4 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors duration-200"
+              >
+                <div className="flex items-center gap-3 w-full">
+                  <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+                    <Plus className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-base">Manage Families</div>
+                    <div className="text-xs text-muted-foreground">Create or join families</div>
+                  </div>
+                </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
           )}
@@ -389,18 +564,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* App Icons */}
       <div className="px-6 py-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 sm:gap-8 md:gap-10 max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl mx-auto">
-          {apps.map((app) => (
-            <div key={app.id} className="relative flex flex-col items-center">
-              <button
-                onClick={() => setCurrentView(app.id)}
-                disabled={!isOnline}
-                className="group relative transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center"
-              >
-                {/* App Icon Container */}
-                <div className="relative">
-                  <div className={`w-20 h-20 bg-gradient-to-br ${app.color} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 group-active:scale-95 transition-transform duration-200`}>
-                    <app.icon className="h-10 w-10 text-white" />
-                  </div>
+          {(isLoadingData || isSwitchingFamily) ? (
+            // Skeleton loading state
+            Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="relative flex flex-col items-center">
+                <div className="flex flex-col items-center">
+                  <Skeleton className="w-20 h-20 rounded-2xl mb-3" />
+                  <Skeleton className="h-4 w-16 rounded" />
+                  <Skeleton className="h-3 w-8 rounded mt-1" />
+                </div>
+              </div>
+            ))
+          ) : (
+            apps.map((app) => (
+              <div key={app.id} className="relative flex flex-col items-center">
+                <button
+                  onClick={() => setCurrentView(app.id)}
+                  disabled={!isOnline}
+                  className="group relative transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center"
+                >
+                  {/* App Icon Container */}
+                  <div className="relative">
+                    <div className={`w-20 h-20 bg-gradient-to-br ${app.color} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 group-active:scale-95 transition-transform duration-200`}>
+                      <app.icon className="h-10 w-10 text-white" />
+                    </div>
                   
                   {/* Notification Badge */}
                   {app.count > 0 && (
@@ -418,48 +605,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </button>
             </div>
-          ))}
+          ))
+          )}
         </div>
       </div>
 
-      {/* Bottom Actions */}
-      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2">
-        <div className="flex items-center gap-4 bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg rounded-full px-6 py-3 shadow-lg border border-white/20">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full w-10 h-10"
-          >
-            <Home className="h-5 w-5" />
-          </Button>
-          
-          <ThemeSwitcher size="sm" showLabel={false} />
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full w-10 h-10">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {user.email?.[0].toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="mb-4">
-              <DropdownMenuLabel className="text-xs">{user.email}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onLeaveGroup} className="text-sm">
-                <Settings className="mr-2 h-4 w-4" />
-                Manage Families
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onLogout} className="text-sm">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+      {/* Bottom Actions for Home Screen */}
+      <BottomActions
+        user={user}
+        onHome={() => {}} // No action needed since we're already home
+        onSettings={() => setCurrentView('settings')}
+        onLogout={onLogout}
+        onManageFamilies={onLeaveGroup}
+        isHome={true}
+      />
 
       <div className="h-32"></div> {/* Bottom spacing */}
     </div>
