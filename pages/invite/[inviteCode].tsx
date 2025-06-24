@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { User } from '@supabase/supabase-js'
-import { supabase } from '../../lib/supabase'
+import { supabase, getAuthRedirectUrl } from '../../lib/supabase'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
@@ -167,7 +167,7 @@ export default function InvitePage() {
             data: {
               display_name: displayName
             },
-            emailRedirectTo: `${window.location.origin}/invite/${inviteCode}`
+            emailRedirectTo: getAuthRedirectUrl(`/invite/${inviteCode}`)
           }
         })
 

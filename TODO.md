@@ -19,13 +19,13 @@
 - [x] Fix degli eventi
 - [x] Fixare la logica del recurring event creation senza la data di fine ripetizione (stop repeating) obbligatorio
 - [x] Merge della PR su master
+- [x] Documents da salvare direttamente su Supabase (pdf, doc, etc)
+- [x] Fixare lo scanner del codice a barre locale e se non funziona l'invio all'AI che ne deve estrarre tutte le informazioni
 - [] Mini ricerca su dynamic safe area
-- [] Documents da salvare direttamente su Supabase (pdf, doc, etc)
-- [] Fixare lo scanner del codice a barre locale e se non funziona l'invio all'AI che ne deve estrarre tutte le informazioni
 
 # TODO PER VERSIONE 0.0.2
 
-- [] Divisione degli events dalle recurrive expenses per fare un tracker con mini dashboard per i costi etc
+- [x] Divisione degli events dalle recurrive expenses per fare un tracker con mini dashboard per i costi etc
 - [] Aggiungere notes (?)
 
 # TODO PER VERSIONE 1.0.0
@@ -42,7 +42,7 @@
 - [] Mettere la priorità sulla task
 - [] Gestire chi crea la task e di chi la completa
 - [] Gestire visualizzazione delle task completate con alternative come 
-- [] Salvare documenta su DB
-- [] Pull to refresh
-- [] Rendere visibile gli eventi con fine nel calendario
+- [x] Salvare documenta su DB
+- [x] Pull to refresh
+- [x] Rendere visibile gli eventi con fine nel calendario
 - [] Refactor con routing system (LENTO?)

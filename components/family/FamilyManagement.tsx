@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
-import { supabase } from '../../lib/supabase'
+import { supabase, getSiteUrl } from '../../lib/supabase'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Alert, AlertDescription } from '../ui/alert'
@@ -161,7 +161,7 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
   }
 
   const generateInviteLink = () => {
-    const baseUrl = window.location.origin
+    const baseUrl = getSiteUrl()
     return `${baseUrl}/invite/${group.invite_code}`
   }
 

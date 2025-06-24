@@ -1,9 +1,49 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Get environment variables with fallbacks for build time
+const getSupabaseUrl = (): string => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!url || url === 'your_supabase_project_url_here') {
+    // Fallback for build time - use a valid placeholder URL
+    return 'https://placeholder.supabase.co'
+  }
+  return url
+}
+
+const getSupabaseAnonKey = (): string => {
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!key || key === 'your_supabase_anon_key_here') {
+    // Fallback for build time - use a valid placeholder key
+    return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder'
+  }
+  return key
+}
+
+const supabaseUrl = getSupabaseUrl()
+const supabaseAnonKey = getSupabaseAnonKey()
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Site URL utility function
+export const getSiteUrl = (): string => {
+  // In production, use the environment variable
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL
+  }
+  
+  // In development or if no site URL is set, use window.location.origin
+  if (typeof window !== 'undefined') {
+    return window.location.origin
+  }
+  
+  // Fallback for server-side rendering
+  return 'http://localhost:3000'
+}
+
+// Authentication helper functions
+export const getAuthRedirectUrl = (path: string = '/auth/callback'): string => {
+  return `${getSiteUrl()}${path}`
+}
 
 // Database types
 export type Database = {
@@ -80,22 +120,40 @@ export type Database = {
           id: string
           group_id: string
           name: string
-          url: string
+          url: string | null
+          file_data: Uint8Array | null
+          file_size: number | null
+          mime_type: string | null
+          file_extension: string | null
+          uploaded_by: string | null
           created_at: string
+          updated_at: string | null
         }
         Insert: {
           id?: string
           group_id: string
           name: string
-          url: string
+          url?: string | null
+          file_data?: Uint8Array | null
+          file_size?: number | null
+          mime_type?: string | null
+          file_extension?: string | null
+          uploaded_by?: string | null
           created_at?: string
+          updated_at?: string | null
         }
         Update: {
           id?: string
           group_id?: string
           name?: string
-          url?: string
+          url?: string | null
+          file_data?: Uint8Array | null
+          file_size?: number | null
+          mime_type?: string | null
+          file_extension?: string | null
+          uploaded_by?: string | null
           created_at?: string
+          updated_at?: string | null
         }
       }
       events: {

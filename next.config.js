@@ -10,7 +10,7 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   images: {
-    domains: ["localhost"],
+    domains: ["localhost", "family.themewfi.xyz"],
   },
   experimental: {
     // appDir is no longer needed in Next.js 14

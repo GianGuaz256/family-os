@@ -3,12 +3,14 @@ import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { ThemeSwitcher } from '../ui/ThemeSwitcher'
 import { BottomActions } from '../ui/BottomActions'
+import { PullToRefreshIndicator } from '../ui/PullToRefreshIndicator'
 import { ListsTab } from './ListsTab'
 import { DocumentsTab } from './DocumentsTab'
 import { EventsTab } from './EventsTab'
 import { CardsTab } from './CardsTab'
 import { SubscriptionsTab } from './SubscriptionsTab'
 import { SettingsTab } from './SettingsTab'
+import { usePullToRefresh } from '../../hooks/usePullToRefresh'
 import { 
   List, 
   FileText, 
@@ -28,7 +30,8 @@ import {
   TreePine,
   Flower,
   Sun,
-  Moon
+  Moon,
+  QrCode
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
@@ -82,6 +85,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [allGroups, setAllGroups] = useState<FamilyGroup[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [isSwitchingFamily, setIsSwitchingFamily] = useState(false)
+
+  // Pull-to-refresh functionality
+  const handleRefresh = async () => {
+    await Promise.all([
+      fetchData(),
+      fetchAllGroups()
+    ])
+  }
+
+  const { isRefreshing, pullDistance, containerRef } = usePullToRefresh({
+    onRefresh: handleRefresh,
+    threshold: 80,
+    enabled: isOnline && !isLoadingData && !isSwitchingFamily
+  })
 
   useEffect(() => {
     let cleanup: (() => void) | undefined
@@ -395,7 +412,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   if (currentView !== 'home') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <div 
+        ref={containerRef}
+        className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 overflow-auto"
+        style={{
+          paddingTop: pullDistance > 0 ? `${Math.min(pullDistance * 0.8 + 20, 100)}px` : undefined,
+          transition: pullDistance === 0 ? 'padding-top 0.4s ease-out' : undefined
+        }}
+      >
+        {/* Pull-to-Refresh Indicator */}
+        <PullToRefreshIndicator
+          pullDistance={pullDistance}
+          isRefreshing={isRefreshing}
+          threshold={80}
+        />
+
         {/* App Content */}
         <div className="p-4 pb-32">
           {currentView === 'lists' && (
@@ -412,6 +443,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               groupId={group.id} 
               onUpdate={fetchData}
               isOnline={isOnline}
+              currentUserId={user.id}
             />
           )}
           {currentView === 'events' && (
@@ -464,7 +496,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // Home Screen
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+    <div 
+      ref={containerRef}
+      className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 overflow-auto"
+      style={{
+        paddingTop: pullDistance > 0 ? `${Math.min(pullDistance * 0.8 + 20, 100)}px` : undefined,
+        transition: pullDistance === 0 ? 'padding-top 0.4s ease-out' : undefined
+      }}
+    >
+      {/* Pull-to-Refresh Indicator */}
+      <PullToRefreshIndicator
+        pullDistance={pullDistance}
+        isRefreshing={isRefreshing}
+        threshold={80}
+      />
 
       {/* Time and Date Widget */}
       <div className="px-6 py-8 text-center">

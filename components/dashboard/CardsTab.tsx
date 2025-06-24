@@ -1,5 +1,4 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
-import Webcam from 'react-webcam'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -12,7 +11,8 @@ import {
   DialogTitle,
 } from '../ui/dialog'
 import { VirtualCard } from '../ui/VirtualCard'
-import { Camera, CreditCard, Plus, Trash2, Edit, X, Brain, FileText } from 'lucide-react'
+import { BarcodeScanner } from '../ui/BarcodeScanner'
+import { CreditCard, Plus, Trash2, Edit, X, FileText, QrCode } from 'lucide-react'
 
 interface LoyaltyCard {
   id: string
@@ -42,12 +42,8 @@ export const CardsTab: React.FC<CardsTabProps> = ({
   const [showScanModal, setShowScanModal] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showFullscreenCard, setShowFullscreenCard] = useState<LoyaltyCard | null>(null)
-  const [capturedImage, setCapturedImage] = useState<string | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
   const [editingCard, setEditingCard] = useState<LoyaltyCard | null>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [stream, setStream] = useState<MediaStream | null>(null)
+  const [barcodeScanned, setBarcodeScanned] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     brand: '',
@@ -57,8 +53,6 @@ export const CardsTab: React.FC<CardsTabProps> = ({
     expiry_date: '',
     notes: ''
   })
-
-  const webcamRef = useRef<Webcam>(null)
 
   // Listen for custom events from BottomActions
   useEffect(() => {
@@ -86,67 +80,21 @@ export const CardsTab: React.FC<CardsTabProps> = ({
       expiry_date: '',
       notes: ''
     })
-    setCapturedImage(null)
     setEditingCard(null)
     setShowFullscreenCard(null)
+    setBarcodeScanned(false)
   }
 
-  const captureImage = useCallback(() => {
-    const imageSrc = webcamRef.current?.getScreenshot()
-    if (imageSrc) {
-      setCapturedImage(imageSrc)
-      processImageWithAI(imageSrc)
-    }
-  }, [webcamRef])
-
-  const processImageWithAI = async (imageData: string) => {
-    setIsProcessing(true)
-    
-    try {
-      // Check if we have API route available
-      const response = await fetch('/api/analyze-card', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ image: imageData }),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('API Error Response:', errorText)
-        
-        if (errorText.includes('<!DOCTYPE')) {
-          // API route doesn't exist or server error
-          throw new Error('AI analysis service is not available. Please add OpenAI API key to environment variables.')
-        } else {
-          throw new Error(`API Error (${response.status}): ${errorText}`)
-        }
-      }
-
-      const result = await response.json()
-      
-      if (result.cardInfo && Object.keys(result.cardInfo).length > 0) {
-        setFormData(prev => ({
-          ...prev,
-          ...result.cardInfo
-        }))
-      }
-
-    } catch (error) {
-      console.error('AI processing error:', error)
-      
-      // Set a basic fallback name so users can still save the card
-      if (!formData.name) {
-        setFormData(prev => ({
-          ...prev,
-          name: 'Loyalty Card'
-        }))
-      }
-    } finally {
-      setIsProcessing(false)
-    }
+  const handleBarcodeScanned = (barcode: string) => {
+    setFormData(prev => ({
+      ...prev,
+      barcode: barcode,
+      name: prev.name || 'Loyalty Card' // Provide a default name if none exists
+    }))
+    setBarcodeScanned(true) // Mark that we've scanned a barcode
   }
+
+
 
   const saveCard = async () => {
     if (!formData.name.trim() || !isOnline) return
@@ -219,19 +167,7 @@ export const CardsTab: React.FC<CardsTabProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const startCamera = async () => {
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
-      })
-      setStream(mediaStream)
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream
-      }
-    } catch (error) {
-      console.error('Error accessing camera:', error)
-    }
-  }
+
 
   return (
     <div className="space-y-6">
@@ -279,62 +215,41 @@ export const CardsTab: React.FC<CardsTabProps> = ({
         onOpenChange={(open) => {
           setShowScanModal(open)
           if (!open) {
-            if (stream) {
-              stream.getTracks().forEach(track => track.stop())
-              setStream(null)
-            }
-            setCapturedImage(null)
+            setBarcodeScanned(false)
+            resetForm()
           }
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Scan Loyalty Card</DialogTitle>
+            <DialogTitle>Scan Barcode</DialogTitle>
           </DialogHeader>
         <div className="space-y-4">
-          {!capturedImage ? (
+          {/* Barcode Scanner */}
+          {!barcodeScanned && (
+            <BarcodeScanner
+              isActive={true}
+              onScanSuccess={handleBarcodeScanned}
+              onCancel={() => setShowScanModal(false)}
+              onError={(error) => console.error('Barcode scan error:', error)}
+            />
+          )}
+
+          {/* Barcode Scanned Form */}
+          {barcodeScanned && (
             <div className="space-y-4">
-              <video
-                ref={videoRef}
-                className="w-full h-64 bg-black rounded-lg"
-                autoPlay
-                playsInline
-              />
-              <div className="flex gap-2">
-                <Button onClick={startCamera} className="flex-1">
-                  Start Camera
-                </Button>
-                <Button onClick={captureImage} variant="secondary">
-                  Capture
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowScanModal(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <img
-                src={capturedImage}
-                alt="Captured card"
-                className="w-full h-64 object-cover rounded-lg"
-              />
-              
-              {isProcessing && (
-                <div className="text-center p-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                  <p className="text-sm text-muted-foreground">
-                    Processing image...
+              <div className="w-full h-20 bg-green-50 dark:bg-green-950/50 border-2 border-green-200 dark:border-green-800 rounded-lg flex items-center justify-center">
+                <div className="text-center">
+                  <QrCode className="h-6 w-6 text-green-600 dark:text-green-400 mx-auto mb-1" />
+                  <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                    Barcode Scanned Successfully!
                   </p>
                 </div>
-              )}
+              </div>
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="scan-card-name">Card Name</Label>
+                  <Label htmlFor="scan-card-name">Card Name *</Label>
                   <Input
                     id="scan-card-name"
                     value={formData.name}
@@ -352,21 +267,13 @@ export const CardsTab: React.FC<CardsTabProps> = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="scan-card-number">Card Number</Label>
-                  <Input
-                    id="scan-card-number"
-                    value={formData.card_number}
-                    onChange={(e) => handleFormChange('card_number', e.target.value)}
-                    placeholder="Member/card number"
-                  />
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="scan-barcode">Barcode</Label>
                   <Input
                     id="scan-barcode"
                     value={formData.barcode}
                     onChange={(e) => handleFormChange('barcode', e.target.value)}
                     placeholder="Barcode number"
+                    disabled
                   />
                 </div>
                 <div className="space-y-2">
@@ -402,28 +309,26 @@ export const CardsTab: React.FC<CardsTabProps> = ({
                 <Button 
                   onClick={saveCard} 
                   className="flex-1" 
-                  disabled={!formData.name.trim() || isProcessing}
+                  disabled={!formData.name.trim()}
                 >
                   Save Card
                 </Button>
                 <Button
                   variant="secondary"
                   onClick={() => {
-                    setCapturedImage(null)
+                    setBarcodeScanned(false)
                     resetForm()
                   }}
-                  disabled={isProcessing}
                 >
-                  Retake
+                  Scan Again
                 </Button>
                 <Button
                   variant="ghost"
                   onClick={() => {
                     setShowScanModal(false)
-                    setCapturedImage(null)
+                    setBarcodeScanned(false)
                     resetForm()
                   }}
-                  disabled={isProcessing}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -590,8 +495,8 @@ export const CardsTab: React.FC<CardsTabProps> = ({
                     disabled={!isOnline}
                   >
                     <div className="flex items-center gap-3">
-                      <Camera className="h-5 w-5" />
-                      <span className="text-base">Foto</span>
+                      <QrCode className="h-5 w-5" />
+                      <span className="text-base">Scan Barcode</span>
                     </div>
                     <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
