@@ -77,6 +77,7 @@ ALTER TABLE cards ENABLE ROW LEVEL SECURITY;
 -- Drop existing policies if they exist
 DROP POLICY IF EXISTS "Users can view groups they belong to" ON family_groups;
 DROP POLICY IF EXISTS "Users can create groups" ON family_groups;
+DROP POLICY IF EXISTS "Anyone can view family by invite code" ON family_groups;
 DROP POLICY IF EXISTS "Users can view group memberships" ON group_members;
 DROP POLICY IF EXISTS "Users can join groups" ON group_members;
 DROP POLICY IF EXISTS "Group members can manage lists" ON lists;
@@ -94,6 +95,9 @@ CREATE POLICY "Users can view groups they belong to" ON family_groups
 
 CREATE POLICY "Users can create groups" ON family_groups
   FOR INSERT WITH CHECK (owner_id = auth.uid());
+
+CREATE POLICY "Anyone can view family by invite code" ON family_groups
+  FOR SELECT USING (invite_code IS NOT NULL);
 
 -- Group members policies
 CREATE POLICY "Users can view group memberships" ON group_members
