@@ -5,6 +5,7 @@ import { FamilyGroupSetup } from '../components/family/FamilyGroupSetup'
 import { Dashboard } from '../components/dashboard/Dashboard'
 import { supabase } from '../lib/supabase'
 import { Skeleton } from '../components/ui/skeleton'
+import { useSelectedGroup } from '../hooks/use-selected-group'
 
 interface HomeProps {
   user: User | null
@@ -20,7 +21,7 @@ interface FamilyGroup {
 }
 
 export default function Home({ user, loading }: HomeProps) {
-  const [selectedGroup, setSelectedGroup] = useState<FamilyGroup | null>(null)
+  const { selectedGroup, setSelectedGroup, getStoredGroupId, clearStoredGroup } = useSelectedGroup(user)
   const [isOnline, setIsOnline] = useState(true)
   const [isLoadingGroups, setIsLoadingGroups] = useState(false)
   const [showFamilyManagement, setShowFamilyManagement] = useState(false)
@@ -44,7 +45,7 @@ export default function Home({ user, loading }: HomeProps) {
     if (user && isOnline && !selectedGroup && !showFamilyManagement) {
       fetchUserGroups()
     }
-  }, [user, isOnline, selectedGroup, showFamilyManagement])
+  }, [user, isOnline, selectedGroup, showFamilyManagement, getStoredGroupId, setSelectedGroup])
 
   const fetchUserGroups = async () => {
     if (!user) return
@@ -71,8 +72,15 @@ export default function Home({ user, loading }: HomeProps) {
         .filter(Boolean) as FamilyGroup[]
       
       if (familyGroups && familyGroups.length > 0) {
-        // Auto-select the first family group
-        setSelectedGroup(familyGroups[0])
+        // Check if we have a stored group preference
+        const storedGroupId = getStoredGroupId()
+        const storedGroup = storedGroupId 
+          ? familyGroups.find(group => group.id === storedGroupId)
+          : null
+        
+        // Use stored group if it exists in user's groups, otherwise use first available
+        const groupToSelect = storedGroup || familyGroups[0]
+        setSelectedGroup(groupToSelect)
       } else {
         // No family groups, show family management
         setShowFamilyManagement(true)
@@ -87,7 +95,7 @@ export default function Home({ user, loading }: HomeProps) {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    setSelectedGroup(null)
+    clearStoredGroup()
     setShowFamilyManagement(false)
   }
 
@@ -97,7 +105,7 @@ export default function Home({ user, loading }: HomeProps) {
   }
 
   const handleLeaveGroup = () => {
-    setSelectedGroup(null)
+    clearStoredGroup()
     setShowFamilyManagement(true)
   }
 
