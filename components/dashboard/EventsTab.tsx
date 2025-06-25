@@ -27,7 +27,19 @@ import {
   DialogTitle,
 } from '../ui/dialog'
 import { Plus, Calendar as CalendarIcon, Clock, Trash2, Grid, List, Repeat, CalendarDays, FileText, Edit, MapPin, Filter, DollarSign } from 'lucide-react'
-// Removed date-fns dependency - using native Date methods instead
+import {
+  formatDate,
+  formatDateLong,
+  formatDateShort,
+  formatDateCompact,
+  formatTime,
+  formatTimeShort,
+  formatCurrency,
+  formatDateForInput,
+  isUpcoming,
+  getCalendarLocale,
+  getCalendarStartOfWeek
+} from '../../lib/formatters'
 
 interface Event {
   id: string
@@ -111,13 +123,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     }
   }, [viewMode])
 
-  // Helper function to format date in local timezone (YYYY-MM-DD)
-  const formatDateForInput = (date: Date): string => {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
+  // Using centralized formatDateForInput from lib/formatters
 
   // Listen for custom events from BottomActions
   useEffect(() => {
@@ -150,6 +156,23 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     setRecurrenceEndDate('')
     setEditingEvent(null)
   }
+
+  // Auto-set default end date for range events (next day)
+  useEffect(() => {
+    if (newEventType === 'range' && newEventDate && !newEventEndDate) {
+      const startDate = new Date(newEventDate + 'T00:00:00')
+      const nextDay = new Date(startDate)
+      nextDay.setDate(nextDay.getDate() + 1)
+      setNewEventEndDate(formatDateForInput(nextDay))
+    }
+  }, [newEventType, newEventDate])
+
+  // Clear end time if start time is cleared (for single events)
+  useEffect(() => {
+    if (newEventType === 'single' && !newEventStartTime && newEventEndTime) {
+      setNewEventEndTime('')
+    }
+  }, [newEventType, newEventStartTime])
 
   const resetDeleteModal = () => {
     setShowDeleteModal(false)
@@ -194,10 +217,35 @@ export const EventsTab: React.FC<EventsTabProps> = ({
 
   const buildDateTimeString = (date: string, time?: string): string => {
     if (!time) {
-      // If no time specified, use the date as-is for backward compatibility
+      // For full-day events, don't store datetime - just use date
       return date
     }
     return `${date}T${time}:00`
+  }
+
+  // Helper to determine if an event is full-day
+  const isFullDayEvent = (event: Event): boolean => {
+    return !event.start_datetime || (!event.start_datetime && !event.end_datetime)
+  }
+
+  // Helper to get event display time, accounting for full-day events
+  const getEventTimeDisplay = (event: Event) => {
+    // If it's a full-day event, don't show time
+    if (isFullDayEvent(event)) {
+      return null
+    }
+
+    const startTime = event.start_datetime ? formatTimeShort(event.start_datetime) : null
+    const endTime = event.end_datetime ? formatTimeShort(event.end_datetime) : null
+    
+    if (startTime && endTime) {
+      return `${startTime} - ${endTime}`
+    } else if (startTime) {
+      return startTime
+    } else if (endTime) {
+      return `Until ${endTime}`
+    }
+    return null
   }
 
   const addEvent = async () => {
@@ -206,6 +254,12 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     // Validation for different event types
     if (newEventType === 'range' && !newEventEndDate) {
       alert('Please select an end date for date range events')
+      return
+    }
+
+    // Validation: End time only allowed if start time is set for single events
+    if (newEventType === 'single' && newEventEndTime && !newEventStartTime) {
+      alert('Please set a start time before setting an end time')
       return
     }
 
@@ -219,25 +273,28 @@ export const EventsTab: React.FC<EventsTabProps> = ({
         description: newEventDescription || null
       }
 
-      // Add datetime fields if times are specified
+      // Add datetime fields - only if times are specified (for non-full-day events)
       if (newEventStartTime) {
         eventData.start_datetime = buildDateTimeString(newEventDate, newEventStartTime)
       }
 
       // Add fields based on event type
       if (newEventType === 'range') {
-        // Always set end_datetime for range events to ensure calendar display works
-        eventData.end_datetime = newEventEndTime 
-          ? buildDateTimeString(newEventEndDate, newEventEndTime)
-          : buildDateTimeString(newEventEndDate, '23:59') // End of day if no time specified
+        if (newEventStartTime || newEventEndTime) {
+          // Timed range event
+          eventData.end_datetime = newEventEndTime 
+            ? buildDateTimeString(newEventEndDate, newEventEndTime)
+            : buildDateTimeString(newEventEndDate, newEventStartTime) // Same time on end date
+        }
+        // For full-day range events, don't set end_datetime - calendar will use date range
       } else if (newEventType === 'recurring') {
         eventData.recurrence_pattern = recurrencePattern
         eventData.recurrence_interval = recurrenceInterval
         eventData.recurrence_end_date = recurrenceEndDate || null
       }
 
-      // Add end time for single events if specified
-      if (newEventType === 'single' && newEventEndTime) {
+      // Add end time for single events if specified and start time exists
+      if (newEventType === 'single' && newEventEndTime && newEventStartTime) {
         eventData.end_datetime = buildDateTimeString(newEventDate, newEventEndTime)
       }
 
@@ -266,6 +323,12 @@ export const EventsTab: React.FC<EventsTabProps> = ({
       return
     }
 
+    // Validation: End time only allowed if start time is set for single events
+    if (newEventType === 'single' && newEventEndTime && !newEventStartTime) {
+      alert('Please set a start time before setting an end time')
+      return
+    }
+
     setIsLoading(true)
     try {
       const eventData: any = {
@@ -277,25 +340,28 @@ export const EventsTab: React.FC<EventsTabProps> = ({
         end_datetime: null
       }
 
-      // Add datetime fields if times are specified
+      // Add datetime fields - only if times are specified (for non-full-day events)
       if (newEventStartTime) {
         eventData.start_datetime = buildDateTimeString(newEventDate, newEventStartTime)
       }
 
       // Add fields based on event type
       if (newEventType === 'range') {
-        // Always set end_datetime for range events to ensure calendar display works
-        eventData.end_datetime = newEventEndTime 
-          ? buildDateTimeString(newEventEndDate, newEventEndTime)
-          : buildDateTimeString(newEventEndDate, '23:59') // End of day if no time specified
+        if (newEventStartTime || newEventEndTime) {
+          // Timed range event
+          eventData.end_datetime = newEventEndTime 
+            ? buildDateTimeString(newEventEndDate, newEventEndTime)
+            : buildDateTimeString(newEventEndDate, newEventStartTime) // Same time on end date
+        }
+        // For full-day range events, don't set end_datetime - calendar will use date range
       } else if (newEventType === 'recurring') {
         eventData.recurrence_pattern = recurrencePattern
         eventData.recurrence_interval = recurrenceInterval
         eventData.recurrence_end_date = recurrenceEndDate || null
       }
 
-      // Add end time for single events if specified
-      if (newEventType === 'single' && newEventEndTime) {
+      // Add end time for single events if specified and start time exists
+      if (newEventType === 'single' && newEventEndTime && newEventStartTime) {
         eventData.end_datetime = buildDateTimeString(newEventDate, newEventEndTime)
       }
 
@@ -684,17 +750,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     return instances
   }
 
-  // Helper function to format currency
-  const formatCurrency = (amount: number, currency: string) => {
-    try {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currency
-      }).format(amount)
-    } catch {
-      return `${currency} ${amount.toFixed(2)}`
-    }
-  }
+  // Using centralized formatCurrency from lib/formatters
 
   // Convert subscriptions to event-like objects for unified display
   const subscriptionEvents = subscriptions
@@ -770,58 +826,113 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   const allDisplayEvents = getFilteredEvents()
   const upcomingListEvents = getUpcomingListEvents()
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
-    } catch {
-      return 'Invalid date'
+  // Apply filter to list events based on eventFilter
+  const getFilteredListEvents = () => {
+    switch (eventFilter) {
+      case 'events':
+        return upcomingListEvents // Only events, no subscriptions
+      case 'subscriptions':
+        return subscriptionEvents as any[] // Only subscriptions, no events
+      default:
+        return [...upcomingListEvents, ...subscriptionEvents] as any[] // All events and subscriptions
     }
   }
 
-  const formatShortDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric'
-      })
-    } catch {
-      return 'Invalid'
-    }
-  }
+  const filteredListEvents = getFilteredListEvents()
 
-  const formatTime = (timeString: string) => {
-    try {
-      const date = new Date(timeString)
-      return date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      })
-    } catch {
-      return null
-    }
-  }
-
-  const getEventTimeDisplay = (event: Event) => {
-    const startTime = event.start_datetime ? formatTime(event.start_datetime) : null
-    const endTime = event.end_datetime ? formatTime(event.end_datetime) : null
+  // Helper function to get current calendar date range
+  const getCurrentCalendarDateRange = () => {
+    // Get the current month and year from the calendar's Zustand store
+    const { month, year } = useCalendar.getState()
+    const startOfMonth = new Date(year, month, 1)
+    const endOfMonth = new Date(year, month + 1, 0)
     
-    if (startTime && endTime) {
-      return `${startTime} - ${endTime}`
-    } else if (startTime) {
-      return startTime
-    } else if (endTime) {
-      return `Until ${endTime}`
-    }
-    return null
+    return { start: startOfMonth, end: endOfMonth }
   }
+
+  // Get calendar state to trigger recalculation when month/year changes
+  const { month, year } = useCalendar()
+
+  // Calculate filter counts - always show total available for each category
+  const getFilterCounts = () => {
+    if (viewMode === 'calendar') {
+      // For calendar view, count events in the currently visible date range
+      const { start, end } = getCurrentCalendarDateRange()
+      
+      // Always count all available events and subscriptions in the date range
+      const eventsInRange = expandedEvents.filter(event => {
+        const eventDate = new Date(event.date + 'T00:00:00')
+        return eventDate >= start && eventDate <= end
+      })
+      
+      const subscriptionsInRange = subscriptionEvents.filter(sub => {
+        const subDate = new Date(sub.date + 'T00:00:00')
+        return subDate >= start && subDate <= end
+      })
+      
+      return {
+        all: eventsInRange.length + subscriptionsInRange.length,
+        events: eventsInRange.length,
+        subscriptions: subscriptionsInRange.length
+      }
+    } else {
+      // For list view, count all available events and subscriptions
+      // regardless of current filter (show what would be available for each filter)
+      // Use raw data, not filtered data
+      const rawListEvents: any[] = []
+      
+      // Process all events without filter
+      events.forEach(event => {
+        if (event.event_type === 'recurring') {
+          // For recurring events, only show the first occurrence in upcoming list
+          const firstInstance = generateRecurringInstances(event)[0]
+          if (firstInstance) {
+            rawListEvents.push({ ...firstInstance, isFirstRecurrence: true })
+          }
+        } else if (event.event_type === 'range') {
+          // For date range events, show both start and end dates
+          rawListEvents.push({
+            ...event,
+            id: `${event.id}-start`,
+            isRangeStart: true
+          })
+          
+          if (event.end_datetime) {
+            const endDate = new Date(event.end_datetime).toISOString().split('T')[0]
+            rawListEvents.push({
+              ...event,
+              id: `${event.id}-end`,
+              date: endDate,
+              title: `${event.title} (Ends)`,
+              isRangeEnd: true
+            })
+          }
+        } else {
+          // Single events remain unchanged
+          rawListEvents.push({ ...event, isInstance: false })
+        }
+      })
+      
+      const allListEvents = [...rawListEvents, ...subscriptionEvents]
+      const allEvents = rawListEvents.length // All processed events
+      const allSubscriptions = subscriptionEvents.length // All subscriptions
+      
+      return {
+        all: allListEvents.length,
+        events: allEvents,
+        subscriptions: allSubscriptions
+      }
+    }
+  }
+
+  const filterCounts = getFilterCounts()
+
+  // Using centralized formatting functions from lib/formatters
+  // formatDate -> formatDateLong
+  // formatShortDate -> formatDateCompact
+  // formatTime -> formatTimeShort
+
+
 
   // Helper function to get event type info
   const getEventTypeInfo = (event: any) => {
@@ -868,7 +979,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
       case 'range':
         return {
           icon: CalendarDays,
-          label: `Until ${formatShortDate(event.end_datetime ? new Date(event.end_datetime).toISOString().split('T')[0] : event.date)}`,
+          label: `Until ${formatDateCompact(event.end_datetime ? new Date(event.end_datetime).toISOString().split('T')[0] : event.date)}`,
           color: 'text-purple-600',
           bgColor: 'bg-purple-100',
           borderColor: 'border-l-purple-500'
@@ -908,8 +1019,8 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     }
   })
 
-  // Sort upcoming list events separately
-  const sortedUpcomingListEvents = [...upcomingListEvents, ...subscriptionEvents].sort((a, b) => {
+  // Sort filtered list events
+  const sortedFilteredListEvents = filteredListEvents.sort((a: any, b: any) => {
     try {
       const dateA = new Date(a.date + 'T00:00:00').getTime()
       const dateB = new Date(b.date + 'T00:00:00').getTime()
@@ -919,8 +1030,8 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     }
   })
 
-  const upcomingEvents = sortedUpcomingListEvents.filter(event => isUpcoming(event.date))
-  const pastEvents = sortedUpcomingListEvents.filter(event => !isUpcoming(event.date))
+  const upcomingEvents = sortedFilteredListEvents.filter((event: any) => isUpcoming(event.date))
+  const pastEvents = sortedFilteredListEvents.filter((event: any) => !isUpcoming(event.date))
 
   // Get minimum date for input (today)
   const today = formatDateForInput(new Date())
@@ -1026,8 +1137,9 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                     </Button>
                   </>
                 ) : (
-                  <div className="text-xs text-muted-foreground px-2">
-                    Subscription
+                  <div className="text-xs text-muted-foreground px-1 sm:px-2">
+                    <span className="hidden sm:inline">Subscription</span>
+                    <span className="sm:hidden">💳</span>
                   </div>
                 )}
               </div>
@@ -1065,7 +1177,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
               <div className="flex-shrink-0">
                 <div className={`bg-white border-2 ${badgeBorder} rounded-2xl px-3 py-2 text-center min-w-[60px]`}>
                   <div className={`text-xs font-medium ${badgeTextColor} uppercase tracking-wide`}>
-                    {new Date(event.date).toLocaleDateString('en-US', { month: 'short' })}
+                    {formatDateCompact(event.date).split(' ')[1]} {/* Extract month from compact format */}
                   </div>
                   <div className={`text-lg font-bold ${badgeNumberColor}`}>
                     {new Date(event.date).getDate()}
@@ -1104,7 +1216,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                 )}
                 
                 <p className={`text-sm ${dateColor}`}>
-                  {formatDate(event.date)}
+                                      {formatDateLong(event.date)}
                 </p>
               </div>
             </div>
@@ -1133,8 +1245,9 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                   </Button>
                 </>
               ) : (
-                <div className="text-sm text-muted-foreground font-medium bg-purple-50 dark:bg-purple-900/20 px-3 py-1 rounded-full">
-                  💳 Subscription
+                <div className="text-xs sm:text-sm text-muted-foreground font-medium bg-purple-50 dark:bg-purple-900/20 px-2 sm:px-3 py-1 rounded-full">
+                  <span className="hidden sm:inline">💳 Subscription</span>
+                  <span className="sm:hidden">💳</span>
                 </div>
               )}
             </div>
@@ -1186,14 +1299,26 @@ export const EventsTab: React.FC<EventsTabProps> = ({
 
   const renderListView = () => (
     <div className="space-y-8">
-      {events.length === 0 ? (
+      {filteredListEvents.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-4xl mb-4">📅</div>
+          <div className="text-4xl mb-4">
+            {eventFilter === 'events' ? '📅' : eventFilter === 'subscriptions' ? '💳' : '📅'}
+          </div>
           <h3 className="text-lg font-semibold mb-2">
-            No events yet
+            {eventFilter === 'events' 
+              ? 'No events found' 
+              : eventFilter === 'subscriptions' 
+                ? 'No subscriptions found' 
+                : 'No events or subscriptions found'
+            }
           </h3>
           <p className="text-muted-foreground mb-4">
-            Add your first event to get started
+            {eventFilter === 'events' 
+              ? 'Add your first event to get started' 
+              : eventFilter === 'subscriptions' 
+                ? 'Set up your first subscription to track recurring payments' 
+                : 'Add events or subscriptions to get started'
+            }
           </p>
         </div>
       ) : (
@@ -1206,7 +1331,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                 Upcoming Events
               </h3>
               <div className="space-y-3">
-                {upcomingEvents.map((event) => (
+                {upcomingEvents.map((event: any) => (
                   <EventCard key={event.id} event={event} variant="list" />
                 ))}
               </div>
@@ -1221,7 +1346,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                 Past Events
               </h3>
               <div className="space-y-3">
-                {pastEvents.map((event) => (
+                {pastEvents.map((event: any) => (
                   <EventCard key={event.id} event={event} variant="list" />
                 ))}
               </div>
@@ -1285,7 +1410,11 @@ export const EventsTab: React.FC<EventsTabProps> = ({
         {/* Calendar */}
         <div className="lg:col-span-2 min-w-0">
           <div className="bg-card rounded-2xl border-2 overflow-hidden w-full">
-            <CalendarProvider className="min-w-0">
+            <CalendarProvider 
+              className="min-w-0"
+              locale={getCalendarLocale()}
+              startDay={getCalendarStartOfWeek()}
+            >
               <CalendarDate>
                 <CalendarDatePicker>
                   <CalendarMonthPicker className="min-w-0 w-auto" />
@@ -1315,11 +1444,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
               <h3 className="text-lg font-semibold">
                 {selectedDate ? (
                   <span className="text-primary">
-                    {selectedDate.toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
+                    {formatDateShort(selectedDate)}
                   </span>
                 ) : (
                   'Select a date'
@@ -1350,11 +1475,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">
                   <span className="text-primary">
-                    {selectedDate.toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
+                    {formatDateShort(selectedDate)}
                   </span>
                 </h3>
                 <Button
@@ -1404,42 +1525,68 @@ export const EventsTab: React.FC<EventsTabProps> = ({
       </div>
 
       {/* Filter Section */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Filter className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium text-muted-foreground">Filter:</span>
-        <div className="inline-flex rounded-lg border bg-muted p-1">
+      <div className="flex items-center gap-3 min-h-[44px]">
+        <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        <div className="rounded-2xl border bg-card shadow-sm p-1 min-h-[36px] flex items-center overflow-x-auto max-w-full">
+          <div className="flex gap-0.5 min-w-fit">
           <button
             onClick={() => setEventFilter('all')}
-            className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-              eventFilter === 'all'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:bg-muted-foreground/10'
-            }`}
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-xl px-3 h-8 text-sm font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-muted-foreground hover:text-foreground hover:bg-muted/40"
           >
-            All ({allDisplayEvents.length})
+            <span className={`mr-2 transition-colors duration-200 ${
+              eventFilter === 'all' ? 'text-primary font-semibold' : ''
+            }`}>
+              All
+            </span>
+            <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
+              eventFilter === 'all'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'bg-muted text-muted-foreground'
+            }`}>
+              {filterCounts.all}
+            </span>
           </button>
           <button
             onClick={() => setEventFilter('events')}
-            className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-              eventFilter === 'events'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:bg-muted-foreground/10'
-            }`}
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-xl px-3 h-8 text-sm font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-muted-foreground hover:text-foreground hover:bg-muted/40"
           >
-            <CalendarIcon className="h-3 w-3 mr-1" />
-            Events ({events.length})
+            <CalendarIcon className={`h-3.5 w-3.5 mr-1.5 flex-shrink-0 transition-colors duration-200 ${
+              eventFilter === 'events' ? 'text-blue-500' : ''
+            }`} />
+            <span className={`mr-2 transition-colors duration-200 ${
+              eventFilter === 'events' ? 'text-blue-500 font-semibold' : ''
+            }`}>
+              Events
+            </span>
+            <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
+              eventFilter === 'events'
+                ? 'bg-blue-500 text-white shadow-sm'
+                : 'bg-muted text-muted-foreground'
+            }`}>
+              {filterCounts.events}
+            </span>
           </button>
           <button
             onClick={() => setEventFilter('subscriptions')}
-            className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-              eventFilter === 'subscriptions'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:bg-muted-foreground/10'
-            }`}
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-xl px-3 h-8 text-sm font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-muted-foreground hover:text-foreground hover:bg-muted/40"
           >
-            <DollarSign className="h-3 w-3 mr-1" />
-            Subscriptions ({subscriptionEvents.length})
+            <DollarSign className={`h-3.5 w-3.5 mr-1.5 flex-shrink-0 transition-colors duration-200 ${
+              eventFilter === 'subscriptions' ? 'text-emerald-500' : ''
+            }`} />
+            <span className={`mr-2 transition-colors duration-200 ${
+              eventFilter === 'subscriptions' ? 'text-emerald-500 font-semibold' : ''
+            }`}>
+              Subscriptions
+            </span>
+            <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
+              eventFilter === 'subscriptions'
+                ? 'bg-emerald-500 text-white shadow-sm'
+                : 'bg-muted text-muted-foreground'
+            }`}>
+              {filterCounts.subscriptions}
+            </span>
           </button>
+          </div>
         </div>
       </div>
 
@@ -1478,54 +1625,74 @@ export const EventsTab: React.FC<EventsTabProps> = ({
             </Select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="event-date">Start Date</Label>
-              <Input
-                id="event-date"
-                type="date"
-                value={newEventDate}
-                onChange={(e) => setNewEventDate(e.target.value)}
-                min={today}
-              />
+          {/* Date and Time Fields - Always on same line */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="event-date">{newEventType === 'single' ? 'Date *' : 'Start Date *'}</Label>
+                <Input
+                  id="event-date"
+                  type="date"
+                  value={newEventDate}
+                  onChange={(e) => setNewEventDate(e.target.value)}
+                  min={today}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="event-start-time">Start Time</Label>
+                <Input
+                  id="event-start-time"
+                  type="time"
+                  value={newEventStartTime}
+                  onChange={(e) => setNewEventStartTime(e.target.value)}
+                  placeholder="All day if empty"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="event-start-time">Start Time (Optional)</Label>
-              <Input
-                id="event-start-time"
-                type="time"
-                value={newEventStartTime}
-                onChange={(e) => setNewEventStartTime(e.target.value)}
-                placeholder="Optional"
-              />
-            </div>
+
+            {/* End Time - Only show if Start Time is set for single events */}
+            {newEventType === 'single' && newEventStartTime && (
+              <div className="grid grid-cols-2 gap-4">
+                <div></div>
+                <div className="space-y-2">
+                  <Label htmlFor="event-end-time">End Time</Label>
+                  <Input
+                    id="event-end-time"
+                    type="time"
+                    value={newEventEndTime}
+                    onChange={(e) => setNewEventEndTime(e.target.value)}
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Range Event - End Date and Time */}
+            {newEventType === 'range' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="event-end-date">End Date</Label>
+                  <Input
+                    id="event-end-date"
+                    type="date"
+                    value={newEventEndDate}
+                    onChange={(e) => setNewEventEndDate(e.target.value)}
+                    min={newEventDate || today}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="event-end-time">End Time</Label>
+                  <Input
+                    id="event-end-time"
+                    type="time"
+                    value={newEventEndTime}
+                    onChange={(e) => setNewEventEndTime(e.target.value)}
+                    placeholder="All day if empty"
+                  />
+                </div>
+              </div>
+            )}
           </div>
-
-          {(newEventType === 'single' || newEventType === 'range') && (
-            <div className="space-y-2">
-              <Label htmlFor="event-end-time">End Time (Optional)</Label>
-              <Input
-                id="event-end-time"
-                type="time"
-                value={newEventEndTime}
-                onChange={(e) => setNewEventEndTime(e.target.value)}
-                placeholder="Optional"
-              />
-            </div>
-          )}
-
-          {newEventType === 'range' && (
-            <div className="space-y-2">
-              <Label htmlFor="event-end-date">End Date</Label>
-              <Input
-                id="event-end-date"
-                type="date"
-                value={newEventEndDate}
-                onChange={(e) => setNewEventEndDate(e.target.value)}
-                min={newEventDate || today}
-              />
-            </div>
-          )}
 
           {newEventType === 'recurring' && (
             <>
@@ -1637,54 +1804,74 @@ export const EventsTab: React.FC<EventsTabProps> = ({
               </Select>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-event-date">Start Date</Label>
-                <Input
-                  id="edit-event-date"
-                  type="date"
-                  value={newEventDate}
-                  onChange={(e) => setNewEventDate(e.target.value)}
-                  min={today}
-                />
+            {/* Date and Time Fields - Always on same line */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-event-date">{newEventType === 'single' ? 'Date *' : 'Start Date *'}</Label>
+                  <Input
+                    id="edit-event-date"
+                    type="date"
+                    value={newEventDate}
+                    onChange={(e) => setNewEventDate(e.target.value)}
+                    min={today}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-event-start-time">Start Time</Label>
+                  <Input
+                    id="edit-event-start-time"
+                    type="time"
+                    value={newEventStartTime}
+                    onChange={(e) => setNewEventStartTime(e.target.value)}
+                    placeholder="All day if empty"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-event-start-time">Start Time (Optional)</Label>
-                <Input
-                  id="edit-event-start-time"
-                  type="time"
-                  value={newEventStartTime}
-                  onChange={(e) => setNewEventStartTime(e.target.value)}
-                  placeholder="Optional"
-                />
-              </div>
+
+              {/* End Time - Only show if Start Time is set for single events */}
+              {newEventType === 'single' && newEventStartTime && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div></div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-event-end-time">End Time</Label>
+                    <Input
+                      id="edit-event-end-time"
+                      type="time"
+                      value={newEventEndTime}
+                      onChange={(e) => setNewEventEndTime(e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Range Event - End Date and Time */}
+              {newEventType === 'range' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-event-end-date">End Date</Label>
+                    <Input
+                      id="edit-event-end-date"
+                      type="date"
+                      value={newEventEndDate}
+                      onChange={(e) => setNewEventEndDate(e.target.value)}
+                      min={newEventDate || today}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-event-end-time">End Time</Label>
+                    <Input
+                      id="edit-event-end-time"
+                      type="time"
+                      value={newEventEndTime}
+                      onChange={(e) => setNewEventEndTime(e.target.value)}
+                      placeholder="All day if empty"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
-
-            {(newEventType === 'single' || newEventType === 'range') && (
-              <div className="space-y-2">
-                <Label htmlFor="edit-event-end-time">End Time (Optional)</Label>
-                <Input
-                  id="edit-event-end-time"
-                  type="time"
-                  value={newEventEndTime}
-                  onChange={(e) => setNewEventEndTime(e.target.value)}
-                  placeholder="Optional"
-                />
-              </div>
-            )}
-
-            {newEventType === 'range' && (
-              <div className="space-y-2">
-                <Label htmlFor="edit-event-end-date">End Date</Label>
-                <Input
-                  id="edit-event-end-date"
-                  type="date"
-                  value={newEventEndDate}
-                  onChange={(e) => setNewEventEndDate(e.target.value)}
-                  min={newEventDate || today}
-                />
-              </div>
-            )}
 
             {newEventType === 'recurring' && (
               <>
@@ -1838,7 +2025,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                 <Label htmlFor="delete-single" className="flex-1 cursor-pointer">
                   <div className="font-medium">This event only</div>
                   <div className="text-sm text-muted-foreground">
-                    Delete just this occurrence on {deletingEvent?.date ? formatDate(deletingEvent.date) : ''}
+                    Delete just this occurrence on {deletingEvent?.date ? formatDateLong(deletingEvent.date) : ''}
                   </div>
                 </Label>
               </div>
@@ -1913,8 +2100,8 @@ export const EventsTab: React.FC<EventsTabProps> = ({
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
               This will permanently delete the entire date range event from{' '}
-              {deletingEvent?.date && formatDate(deletingEvent.date)} to{' '}
-              {deletingEvent?.end_datetime && formatDate(new Date(deletingEvent.end_datetime).toISOString().split('T')[0])}.
+              {deletingEvent?.date && formatDateLong(deletingEvent.date)} to{' '}
+              {deletingEvent?.end_datetime && formatDateLong(new Date(deletingEvent.end_datetime).toISOString().split('T')[0])}.
             </div>
 
             <div className="flex gap-2 pt-4">

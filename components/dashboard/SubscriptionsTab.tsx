@@ -41,6 +41,12 @@ import {
   ExternalLink,
   Grid
 } from 'lucide-react'
+import {
+  formatCurrency,
+  formatDateShort,
+  isPaymentSoon,
+  getDefaultCurrency
+} from '../../lib/formatters'
 
 interface Subscription {
   id: string
@@ -54,7 +60,7 @@ interface Subscription {
   payer_id?: string
   category?: 'streaming' | 'utilities' | 'insurance' | 'software' | 'fitness' | 'food' | 'transport' | 'gaming' | 'news' | 'cloud' | 'other'
   payment_method?: string
-  next_payment_date: string
+  next_payment_date: string // Auto-calculated field, but still exists in database
   start_date: string
   end_date?: string
   auto_renew: boolean
@@ -99,13 +105,12 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
     title: '',
     provider: '',
     cost: '',
-    currency: 'USD',
+    currency: getDefaultCurrency(),
     billing_cycle: 'monthly' as 'weekly' | 'monthly' | 'quarterly' | 'yearly',
     billing_day: '',
     payer_id: '',
     category: '' as '' | 'streaming' | 'utilities' | 'insurance' | 'software' | 'fitness' | 'food' | 'transport' | 'gaming' | 'news' | 'cloud' | 'other',
     payment_method: '',
-    next_payment_date: '',
     start_date: '',
     end_date: '',
     auto_renew: true,
@@ -168,7 +173,6 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
       payer_id: '',
       category: '',
       payment_method: '',
-      next_payment_date: '',
       start_date: '',
       end_date: '',
       auto_renew: true,
@@ -177,6 +181,37 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
       website_url: ''
     })
     setEditingSubscription(null)
+  }
+
+  // Helper function to calculate next payment date based on recurring pattern
+  const calculateNextPaymentDate = (startDate: string, billingCycle: string, today: Date = new Date()): string => {
+    const start = new Date(startDate + 'T00:00:00')
+    let nextPayment = new Date(start)
+    
+    // If start date is in the future, that's the next payment
+    if (start > today) {
+      return start.toISOString().split('T')[0]
+    }
+    
+    // Calculate next occurrence based on billing cycle
+    while (nextPayment <= today) {
+      switch (billingCycle) {
+        case 'weekly':
+          nextPayment.setDate(nextPayment.getDate() + 7)
+          break
+        case 'monthly':
+          nextPayment.setMonth(nextPayment.getMonth() + 1)
+          break
+        case 'quarterly':
+          nextPayment.setMonth(nextPayment.getMonth() + 3)
+          break
+        case 'yearly':
+          nextPayment.setFullYear(nextPayment.getFullYear() + 1)
+          break
+      }
+    }
+    
+    return nextPayment.toISOString().split('T')[0]
   }
 
   const openEditModal = (subscription: Subscription) => {
@@ -191,7 +226,6 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
       payer_id: subscription.payer_id || '',
       category: subscription.category || '',
       payment_method: subscription.payment_method || '',
-      next_payment_date: subscription.next_payment_date,
       start_date: subscription.start_date,
       end_date: subscription.end_date || '',
       auto_renew: subscription.auto_renew,
@@ -203,7 +237,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
   }
 
   const addSubscription = async () => {
-    if (!formData.title.trim() || !formData.cost || !formData.next_payment_date || !formData.start_date || !isOnline) return
+    if (!formData.title.trim() || !formData.cost || !formData.start_date || !isOnline) return
 
     setIsLoading(true)
     try {
@@ -218,7 +252,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
         payer_id: formData.payer_id || null,
         category: formData.category || null,
         payment_method: formData.payment_method || null,
-        next_payment_date: formData.next_payment_date,
+        next_payment_date: calculateNextPaymentDate(formData.start_date, formData.billing_cycle),
         start_date: formData.start_date,
         end_date: formData.end_date || null,
         auto_renew: formData.auto_renew,
@@ -245,7 +279,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
   }
 
   const updateSubscription = async () => {
-    if (!editingSubscription || !formData.title.trim() || !formData.cost || !formData.next_payment_date || !formData.start_date || !isOnline) return
+    if (!editingSubscription || !formData.title.trim() || !formData.cost || !formData.start_date || !isOnline) return
 
     setIsLoading(true)
     try {
@@ -259,7 +293,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
         payer_id: formData.payer_id || null,
         category: formData.category || null,
         payment_method: formData.payment_method || null,
-        next_payment_date: formData.next_payment_date,
+        next_payment_date: calculateNextPaymentDate(formData.start_date, formData.billing_cycle),
         start_date: formData.start_date,
         end_date: formData.end_date || null,
         auto_renew: formData.auto_renew,
@@ -350,12 +384,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
     }
   }
 
-  const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency
-    }).format(amount)
-  }
+  // Using centralized formatCurrency from lib/formatters
 
   const calculateMonthlyTotal = () => {
     return subscriptions
@@ -417,26 +446,30 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
       .sort((a, b) => b.amount - a.amount)
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })
-  }
-
-  const isPaymentSoon = (date: string) => {
-    const paymentDate = new Date(date)
-    const today = new Date()
-    const diffTime = paymentDate.getTime() - today.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays <= 7 && diffDays >= 0
-  }
+  // Using centralized formatDateShort and isPaymentSoon from lib/formatters
 
   const activeSubscriptions = subscriptions.filter(sub => sub.is_active)
   const inactiveSubscriptions = subscriptions.filter(sub => !sub.is_active)
   const upcomingPayments = getUpcomingPayments()
   const categoryBreakdown = getCategoryBreakdown()
+
+  // Convert subscriptions to event-like objects for unified display
+  const subscriptionEvents = subscriptions
+    .filter(sub => sub.is_active)
+    .map(sub => ({
+      ...sub,
+      id: `subscription-${sub.id}`,
+      title: `💳 ${sub.title}${sub.cost ? ` - ${formatCurrency(sub.cost, sub.currency)}` : ''}`,
+      date: sub.next_payment_date,
+      start_datetime: undefined,
+      end_datetime: undefined,
+      event_type: 'subscription' as const,
+      recurrence_pattern: undefined,
+      recurrence_interval: undefined,
+      recurrence_end_date: undefined,
+      description: `Subscription payment - ${sub.billing_cycle}${sub.provider ? ` | ${sub.provider}` : ''}`,
+      isSubscription: true
+    }))
 
   return (
     <div className="space-y-6">
@@ -474,7 +507,14 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Active</p>
-                <p className="text-2xl font-bold">{activeSubscriptions.length}</p>
+                <p className="text-2xl font-bold">
+                  {activeSubscriptions.length}
+                  {inactiveSubscriptions.length > 0 && (
+                    <span className="text-sm text-muted-foreground ml-1">
+                      / {subscriptions.length}
+                    </span>
+                  )}
+                </p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                 <Package className="h-4 w-4 text-green-600" />
@@ -539,26 +579,35 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
       {/* Content based on view mode */}
       {viewMode === 'cards' ? (
         <div className="space-y-6">
-          {/* Active Subscriptions */}
-          {activeSubscriptions.length > 0 && (
+          {/* All Subscriptions */}
+          {subscriptions.length > 0 && (
             <div>
-              <h3 className="text-lg font-semibold mb-4">Active Subscriptions</h3>
+              <h3 className="text-lg font-semibold mb-4">Subscriptions</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {activeSubscriptions.map((subscription) => {
+                {subscriptions.map((subscription) => {
                   const CategoryIcon = getCategoryIcon(subscription.category)
                   const categoryColor = getCategoryColor(subscription.category)
                   const payer = groupMembers.find(m => m.user_id === subscription.payer_id)
                   
-                  return (
-                    <Card key={subscription.id} className={`relative ${isPaymentSoon(subscription.next_payment_date) ? 'ring-2 ring-orange-200' : ''}`}>
+                                      return (
+                      <Card key={subscription.id} className={`relative ${
+                        !subscription.is_active 
+                          ? 'opacity-60 bg-muted/30' 
+                          : isPaymentSoon(subscription.next_payment_date) 
+                            ? 'ring-2 ring-orange-200' 
+                            : ''
+                      }`}>
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${categoryColor.replace('text-', 'text-').replace('bg-', 'bg-').replace('border-', 'bg-')}`}>
+                            <div className={`p-2 rounded-lg ${categoryColor.replace('text-', 'text-').replace('bg-', 'bg-').replace('border-', 'bg-')} ${!subscription.is_active ? 'opacity-50' : ''}`}>
                               <CategoryIcon className="h-4 w-4" />
                             </div>
                             <div>
-                              <h4 className="font-semibold">{subscription.title}</h4>
+                              <h4 className={`font-semibold ${!subscription.is_active ? 'text-muted-foreground' : ''}`}>
+                                {subscription.title}
+                                {!subscription.is_active && <span className="ml-2 text-xs text-red-500">(Inactive)</span>}
+                              </h4>
                               {subscription.provider && (
                                 <p className="text-sm text-muted-foreground">{subscription.provider}</p>
                               )}
@@ -570,22 +619,25 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
                               size="sm"
                               onClick={() => toggleSubscriptionStatus(subscription.id, subscription.is_active)}
                               disabled={!isOnline}
+                              title={subscription.is_active ? 'Deactivate subscription' : 'Activate subscription'}
                             >
-                              <Eye className="h-4 w-4" />
+                              {subscription.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => openEditModal(subscription)}
-                              disabled={!isOnline}
+                              disabled={!isOnline || !subscription.is_active}
+                              title={!subscription.is_active ? 'Activate subscription to edit' : 'Edit subscription'}
                             >
-                              <Edit className="h-4 w-4" />
+                              <Edit className={`h-4 w-4 ${!subscription.is_active ? 'opacity-50' : ''}`} />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => deleteSubscription(subscription.id)}
                               disabled={!isOnline}
+                              title="Delete subscription"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -595,7 +647,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-muted-foreground">Cost</span>
-                            <span className="font-semibold">
+                            <span className={`font-semibold ${!subscription.is_active ? 'text-muted-foreground line-through' : ''}`}>
                               {formatCurrency(subscription.cost, subscription.currency)}
                               <span className="text-xs text-muted-foreground ml-1">
                                 /{subscription.billing_cycle}
@@ -604,9 +656,17 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
                           </div>
                           
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Next Payment</span>
-                            <span className={`text-sm font-medium ${isPaymentSoon(subscription.next_payment_date) ? 'text-orange-600' : ''}`}>
-                              {formatDate(subscription.next_payment_date)}
+                            <span className="text-sm text-muted-foreground">
+                              {subscription.is_active ? 'Next Payment' : 'Last Payment'}
+                            </span>
+                            <span className={`text-sm font-medium ${
+                              !subscription.is_active 
+                                ? 'text-muted-foreground' 
+                                : isPaymentSoon(subscription.next_payment_date) 
+                                  ? 'text-orange-600' 
+                                  : ''
+                            }`}>
+                              {formatDateShort(subscription.next_payment_date)}
                             </span>
                           </div>
 
@@ -851,12 +911,13 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="next_payment_date">Next Payment Date *</Label>
+                <Label htmlFor="end_date">End Date (Optional)</Label>
                 <Input
-                  id="next_payment_date"
+                  id="end_date"
                   type="date"
-                  value={formData.next_payment_date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, next_payment_date: e.target.value }))}
+                  value={formData.end_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
+                  min={formData.start_date}
                 />
               </div>
             </div>
@@ -906,7 +967,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
               </Button>
               <Button
                 onClick={editingSubscription ? updateSubscription : addSubscription}
-                disabled={!formData.title.trim() || !formData.cost || !formData.next_payment_date || !formData.start_date || isLoading || !isOnline}
+                disabled={!formData.title.trim() || !formData.cost || !formData.start_date || isLoading || !isOnline}
               >
                 {isLoading ? 'Saving...' : editingSubscription ? 'Update Subscription' : 'Add Subscription'}
               </Button>
