@@ -568,11 +568,15 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
 
       {/* Upcoming Payments Alert */}
       {upcomingPayments.length > 0 && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            You have {upcomingPayments.length} payment(s) due in the next 7 days
-          </AlertDescription>
+        <Alert className="border-orange-300 bg-gradient-to-r from-orange-100 to-amber-100 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
+              <AlertCircle className="h-5 w-5 text-white" />
+            </div>
+            <AlertDescription className="font-semibold text-orange-800 text-base">
+              You have {upcomingPayments.length} payment(s) due in the next 7 days
+            </AlertDescription>
+          </div>
         </Alert>
       )}
 
