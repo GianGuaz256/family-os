@@ -9,6 +9,7 @@ const withPWA = require("next-pwa")({
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
+  output: "standalone",
   images: {
     domains: ["localhost", "family.themewfi.xyz"],
   },
