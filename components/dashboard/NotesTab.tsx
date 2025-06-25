@@ -201,6 +201,19 @@ export const NotesTab: React.FC<NotesTabProps> = ({
     if (!noteToToggle) return
 
     try {
+      // If marking as important, first unmark all other important notes in the group
+      if (!noteToToggle.is_important) {
+        const { error: unmarkError } = await supabase
+          .from('notes')
+          .update({ is_important: false })
+          .eq('group_id', groupId)
+          .eq('is_important', true)
+          .neq('id', noteToToggle.id)
+
+        if (unmarkError) throw unmarkError
+      }
+
+      // Now toggle the current note's importance
       const { error } = await supabase
         .from('notes')
         .update({ is_important: !noteToToggle.is_important })
@@ -566,7 +579,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({
             <DialogDescription>
               {noteToToggle?.is_important 
                 ? 'This note will no longer be marked as important for the family.'
-                : 'This note will be marked as important for the family. Only one note can be important at a time.'
+                : 'This note will be marked as important for the family. Any previously important note will be unmarked.'
               }
             </DialogDescription>
           </DialogHeader>

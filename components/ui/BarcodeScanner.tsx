@@ -18,12 +18,15 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   isActive
 }) => {
   const scannerRef = useRef<Html5QrcodeScanner | null>(null)
+  const retryCountRef = useRef<number>(0)
   const [isScanning, setIsScanning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const elementId = 'barcode-scanner-container'
+  const MAX_RETRY_ATTEMPTS = 50 // Maximum 5 seconds of retrying (50 * 100ms)
 
   useEffect(() => {
     if (isActive && !scannerRef.current) {
+      retryCountRef.current = 0 // Reset retry counter
       initializeScanner()
     } else if (!isActive && scannerRef.current) {
       cleanup()
@@ -50,7 +53,19 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
       // Check if the DOM element exists before initializing
       const element = document.getElementById(elementId)
       if (!element) {
-        console.warn('Scanner element not found, retrying...')
+        retryCountRef.current += 1
+        
+        if (retryCountRef.current >= MAX_RETRY_ATTEMPTS) {
+          const errorMsg = `Failed to find scanner DOM element after ${MAX_RETRY_ATTEMPTS} attempts. Scanner initialization aborted.`
+          console.error(errorMsg)
+          setError('Failed to initialize scanner: DOM element not found')
+          if (onError) {
+            onError(errorMsg)
+          }
+          return
+        }
+        
+        console.warn(`Scanner element not found, retrying... (attempt ${retryCountRef.current}/${MAX_RETRY_ATTEMPTS})`)
         setTimeout(initializeScanner, 100)
         return
       }

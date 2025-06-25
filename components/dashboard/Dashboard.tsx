@@ -109,7 +109,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
     try {
       switch (table) {
-        case 'lists':
+        case 'lists': {
           const { data: listsData } = await supabase
             .from('lists')
             .select('*')
@@ -117,8 +117,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
             .order('created_at', { ascending: false })
           setLists(listsData || [])
           break
+        }
 
-        case 'documents':
+        case 'documents': {
           const { data: documentsData } = await supabase
             .from('documents')
             .select('*')
@@ -126,8 +127,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
             .order('created_at', { ascending: false })
           setDocuments(documentsData || [])
           break
+        }
 
-        case 'events':
+        case 'events': {
           const { data: eventsData } = await supabase
             .from('events')
             .select('*')
@@ -135,8 +137,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
             .order('date', { ascending: true })
           setEvents(eventsData || [])
           break
+        }
 
-        case 'cards':
+        case 'cards': {
           const { data: cardsData } = await supabase
             .from('cards')
             .select('*')
@@ -144,8 +147,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
             .order('created_at', { ascending: false })
           setCards(cardsData || [])
           break
+        }
 
-        case 'subscriptions':
+        case 'subscriptions': {
           const { data: subscriptionsData } = await supabase
             .from('subscriptions')
             .select('*')
@@ -153,8 +157,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
             .order('created_at', { ascending: false })
           setSubscriptions(subscriptionsData || [])
           break
+        }
 
-        case 'notes':
+        case 'notes': {
           const { data: notesData } = await supabase
             .from('notes')
             .select('*')
@@ -162,6 +167,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             .order('created_at', { ascending: false })
           setNotes(notesData || [])
           break
+        }
       }
     } catch (error) {
       console.error(`Error fetching ${table}:`, error)

@@ -117,20 +117,15 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
     setUploadError(null)
 
     try {
-      // Simulate progress for better UX
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90))
-      }, 100)
-
       const result = await uploadDocument({
         name: customFileName,
         groupId,
         file: selectedFile,
-        uploadedBy: currentUserId
+        uploadedBy: currentUserId,
+        onProgress: (progress) => {
+          setUploadProgress(progress)
+        }
       })
-
-      clearInterval(progressInterval)
-      setUploadProgress(100)
 
       if (!result.success) {
         setUploadError(result.error || 'Failed to upload document')

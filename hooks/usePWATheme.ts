@@ -23,15 +23,7 @@ export const usePWATheme = () => {
       
       const expectedStatusBar = theme === 'dark' ? 'black-translucent' : 'default'
       
-      // Log for debugging (remove in production)
-      console.log('PWA Theme Update:', {
-        theme,
-        cssBackground: `hsl(var(--background))`,
-        computedBackground: computedBgColor,
-        actualThemeColor: themeColorMeta.getAttribute('content'),
-        statusBarStyle: statusBarMeta.getAttribute('content'),
-        expectedStatusBar
-      })
+
     }
   }, [theme])
 
@@ -52,8 +44,8 @@ export const updatePWAThemeColor = (theme: 'light' | 'dark') => {
     const computedColor = getComputedStyle(tempEl).backgroundColor
     document.body.removeChild(tempEl)
     
-    // Convert RGB to hex for meta tag
-    const rgbMatch = computedColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/)
+    // Convert RGB/RGBA to hex for meta tag
+    const rgbMatch = computedColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/)
     if (rgbMatch) {
       const r = parseInt(rgbMatch[1])
       const g = parseInt(rgbMatch[2]) 

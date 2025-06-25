@@ -50,11 +50,32 @@ export interface FileValidationResult {
   }
 }
 
+// Magic number signatures for file type validation
+const FILE_SIGNATURES: { [mimeType: string]: number[][] } = {
+  'application/pdf': [[0x25, 0x50, 0x44, 0x46]], // %PDF
+  'application/msword': [[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]], // MS Office legacy
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [[0x50, 0x4B, 0x03, 0x04], [0x50, 0x4B, 0x05, 0x06], [0x50, 0x4B, 0x07, 0x08]], // ZIP-based Office formats
+  'application/vnd.ms-excel': [[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]], // MS Office legacy
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': [[0x50, 0x4B, 0x03, 0x04], [0x50, 0x4B, 0x05, 0x06], [0x50, 0x4B, 0x07, 0x08]], // ZIP-based Office formats
+  'application/vnd.ms-powerpoint': [[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]], // MS Office legacy
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': [[0x50, 0x4B, 0x03, 0x04], [0x50, 0x4B, 0x05, 0x06], [0x50, 0x4B, 0x07, 0x08]], // ZIP-based Office formats
+  'image/jpeg': [[0xFF, 0xD8, 0xFF]], // JPEG
+  'image/jpg': [[0xFF, 0xD8, 0xFF]], // JPEG
+  'image/png': [[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]], // PNG
+  'image/gif': [[0x47, 0x49, 0x46, 0x38, 0x37, 0x61], [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]], // GIF87a, GIF89a
+  'image/webp': [[0x52, 0x49, 0x46, 0x46]], // RIFF (WebP starts with RIFF)
+  'image/svg+xml': [[0x3C, 0x3F, 0x78, 0x6D, 0x6C], [0x3C, 0x73, 0x76, 0x67]], // <?xml, <svg
+  // Text files are harder to validate by magic numbers, so we'll allow them without signature validation
+  'text/plain': [],
+  'text/csv': []
+}
+
 export interface DocumentUploadData {
   name: string
   groupId: string
   file: File
   uploadedBy: string
+  onProgress?: (progress: number) => void
 }
 
 export interface DatabaseResult<T> {
@@ -64,7 +85,75 @@ export interface DatabaseResult<T> {
 }
 
 /**
- * Validates a file for document upload
+ * Reads the first bytes of a file to extract magic number/signature
+ */
+const readFileBytes = async (file: File, numBytes: number = 16): Promise<Uint8Array> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    const slice = file.slice(0, numBytes)
+    
+    reader.onload = () => {
+      if (reader.result instanceof ArrayBuffer) {
+        resolve(new Uint8Array(reader.result))
+      } else {
+        reject(new Error('Failed to read file bytes'))
+      }
+    }
+    
+    reader.onerror = () => reject(new Error('File reading failed'))
+    reader.readAsArrayBuffer(slice)
+  })
+}
+
+/**
+ * Validates file magic number/signature against expected patterns
+ */
+const validateFileSignature = async (file: File, mimeType: string): Promise<boolean> => {
+  const signatures = FILE_SIGNATURES[mimeType]
+  
+  // If no signatures defined for this MIME type, skip validation (like for text files)
+  if (!signatures || signatures.length === 0) {
+    return true
+  }
+  
+  try {
+    // Read enough bytes to check the longest signature (16 bytes should be sufficient)
+    const fileBytes = await readFileBytes(file, 16)
+    
+    // Check if any signature matches
+    return signatures.some(signature => {
+      if (signature.length > fileBytes.length) {
+        return false
+      }
+      
+      // Compare each byte in the signature
+      return signature.every((expectedByte, index) => {
+        return fileBytes[index] === expectedByte
+      })
+    })
+  } catch (error) {
+    console.error('Error reading file signature:', error)
+    return false // Fail validation if we can't read the file
+  }
+}
+
+/**
+ * Enhanced file validation result interface
+ */
+export interface EnhancedFileValidationResult {
+  isValid: boolean
+  error?: string
+  fileInfo?: {
+    name: string
+    size: number
+    type: string
+    extension: string
+  }
+}
+
+/**
+ * Basic synchronous file validation (MIME type and size only)
+ * @deprecated Use validateFileEnhanced for security-enhanced validation
  */
 export const validateFile = (file: File): FileValidationResult => {
   // Check file size
@@ -98,6 +187,31 @@ export const validateFile = (file: File): FileValidationResult => {
 }
 
 /**
+ * Enhanced file validation with magic number verification for security
+ */
+export const validateFileEnhanced = async (file: File): Promise<EnhancedFileValidationResult> => {
+  // Step 1: Basic validation (size and MIME type)
+  const basicValidation = validateFile(file)
+  if (!basicValidation.isValid) {
+    return basicValidation
+  }
+
+  // Step 2: Magic number validation for enhanced security
+  const isValidSignature = await validateFileSignature(file, file.type)
+  if (!isValidSignature) {
+    return {
+      isValid: false,
+      error: `File signature validation failed. The file '${file.name}' may be corrupted or not a genuine ${file.type} file.`
+    }
+  }
+
+  return {
+    isValid: true,
+    fileInfo: basicValidation.fileInfo
+  }
+}
+
+/**
  * Formats file size for display
  */
 export const formatFileSize = (sizeInBytes: number): string => {
@@ -118,17 +232,28 @@ export const getFileTypeIcon = (mimeType: string): string => {
 }
 
 /**
- * Converts a File object to a Uint8Array for database storage
+ * Converts a File object to a Uint8Array for database storage with progress tracking
  */
-export const fileToUint8Array = async (file: File): Promise<Uint8Array> => {
+export const fileToUint8Array = async (
+  file: File, 
+  onProgress?: (progress: number) => void
+): Promise<Uint8Array> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     
     reader.onload = () => {
       if (reader.result instanceof ArrayBuffer) {
+        onProgress?.(100) // File reading complete
         resolve(new Uint8Array(reader.result))
       } else {
         reject(new Error('Failed to read file as ArrayBuffer'))
+      }
+    }
+    
+    reader.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        const percentComplete = Math.round((event.loaded / event.total) * 50) // File reading is 50% of total progress
+        onProgress(percentComplete)
       }
     }
     
@@ -153,23 +278,36 @@ export const createDownloadUrl = (data: Uint8Array, mimeType: string): string =>
 }
 
 /**
- * Uploads a document file to the database
+ * Uploads a document file to the database with real progress tracking
  */
 export const uploadDocument = async (uploadData: DocumentUploadData): Promise<DatabaseResult<string>> => {
   try {
-    // Validate the file
-    const validation = validateFile(uploadData.file)
+    const { onProgress } = uploadData
+    
+    // Step 1: Enhanced file validation with magic number verification (0-10% progress)
+    onProgress?.(0)
+    const validation = await validateFileEnhanced(uploadData.file)
     if (!validation.isValid) {
       return {
         success: false,
         error: validation.error
       }
     }
+    onProgress?.(10)
 
-    // Convert file to Uint8Array
-    const fileData = await fileToUint8Array(uploadData.file)
+    // Step 2: Convert file to Uint8Array (10-65% progress)
+    const fileData = await fileToUint8Array(uploadData.file, (readProgress) => {
+      // Map file reading progress from 10% to 65%
+      const mappedProgress = 10 + (readProgress * 0.55)
+      onProgress?.(Math.round(mappedProgress))
+    })
 
-    // Insert into database
+    // Step 3: Prepare database operation (60-70% progress)
+    onProgress?.(70)
+    
+    // Step 4: Insert into database (70-100% progress)
+    onProgress?.(75)
+    
     const { data, error } = await supabase
       .from('documents')
       .insert({
@@ -192,6 +330,9 @@ export const uploadDocument = async (uploadData: DocumentUploadData): Promise<Da
         error: `Failed to save document: ${error.message}`
       }
     }
+
+    // Step 5: Complete (100% progress)
+    onProgress?.(100)
 
     return {
       success: true,
