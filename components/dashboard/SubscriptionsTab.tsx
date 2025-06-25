@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../ui/button'
@@ -10,6 +10,7 @@ import { Textarea } from '../ui/textarea'
 import { Badge } from '../ui/badge'
 import { Alert, AlertDescription } from '../ui/alert'
 import { Avatar, AvatarFallback } from '../ui/avatar'
+import { AppHeader } from '../ui/AppHeader'
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog'
+import { AppConfig } from '../../lib/app-types'
 import { 
   Plus, 
   DollarSign, 
@@ -84,6 +86,7 @@ interface SubscriptionsTabProps {
   onUpdate: () => void
   isOnline: boolean
   currentUser: User
+  appConfig?: AppConfig
 }
 
 export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
@@ -91,7 +94,8 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
   groupId,
   onUpdate,
   isOnline,
-  currentUser
+  currentUser,
+  appConfig
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -502,32 +506,70 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* App Header with icon and styling */}
+      {appConfig && (
+        <AppHeader
+          title={appConfig.name}
+          appIcon={appConfig.icon}
+          appColor={appConfig.color}
+          appDescription={appConfig.description}
+          transparent={true}
+          showUserControls={false}
+          viewSwitcher={
+            <div className="inline-flex rounded-lg border bg-muted p-1 shrink-0">
+              <button
+                onClick={() => setViewMode('cards')}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 sm:px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                  viewMode === 'cards'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-muted-foreground/10'
+                }`}
+              >
+                <Grid className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('analytics')}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 sm:px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                  viewMode === 'analytics'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-muted-foreground/10'
+                }`}
+              >
+                <TrendingUp className="h-4 w-4" />
+              </button>
+            </div>
+          }
+        />
+      )}
+      
       {/* Header */}
-      <div className="flex justify-between items-center gap-4">
-        <h2 className="text-xl sm:text-2xl font-bold truncate">Subscriptions</h2>
-        <div className="inline-flex rounded-lg border bg-muted p-1 shrink-0">
-          <button
-            onClick={() => setViewMode('cards')}
-            className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 sm:px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-              viewMode === 'cards'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:bg-muted-foreground/10'
-            }`}
-          >
-            <Grid className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => setViewMode('analytics')}
-            className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 sm:px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-              viewMode === 'analytics'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:bg-muted-foreground/10'
-            }`}
-          >
-            <TrendingUp className="h-4 w-4" />
-          </button>
+      {!appConfig && (
+        <div className="flex justify-between items-center gap-4">
+          <h2 className="text-xl sm:text-2xl font-bold truncate">Subscriptions</h2>
+          <div className="inline-flex rounded-lg border bg-muted p-1 shrink-0">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 sm:px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                viewMode === 'cards'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted-foreground/10'
+              }`}
+            >
+              <Grid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('analytics')}
+              className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 sm:px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                viewMode === 'analytics'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted-foreground/10'
+              }`}
+            >
+              <TrendingUp className="h-4 w-4" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

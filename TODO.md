@@ -19,21 +19,22 @@
 - [x] Fix degli eventi
 - [x] Fixare la logica del recurring event creation senza la data di fine ripetizione (stop repeating) obbligatorio
 - [x] Merge della PR su master
-- [] Mini ricerca su dynamic safe area
-- [] Documents da salvare direttamente su Supabase (pdf, doc, etc)
-- [] Fixare lo scanner del codice a barre locale e se non funziona l'invio all'AI che ne deve estrarre tutte le informazioni
-
-# TODO PER VERSIONE 0.0.2
-
-- [] Divisione degli events dalle recurrive expenses per fare un tracker con mini dashboard per i costi etc
-- [] Aggiungere notes (?)
+- [x] Documents da salvare direttamente su Supabase (pdf, doc, etc)
+- [x] Fixare lo scanner del codice a barre locale e se non funziona l'invio all'AI che ne deve estrarre tutte le informazioni
+- [x] Divisione degli events dalle recurrive expenses per fare un tracker con mini dashboard per i costi etc
 
 # TODO PER VERSIONE 1.0.0
 
+- [x] Salvare documenta su DB
+- [x] Pull to refresh
+- [x] Rendere visibile gli eventi con fine nel calendario
+- [x] Mini ricerca su dynamic safe area
+- [x] Aggiungere notes (?)
+- [x] Applicazione notes + Ping
+- [x] Fixed critical dependency
 - [] App per host di AirBnb (esempio) per condividere informazioni importanti sulla casa (doc, guide, codici etc) ai guest
 - [] Creazione di utenti temporanei con solo username e accesso da link
 - [] Salvare dati offline 
-- [] Applicazione notes + Ping
 - [] Nelle settings della family gestire i member roles e permissions
 - [] Cosa mettere al posto dell’orario
 - [] Fixare la logica di visualizzazione dei nomi
@@ -42,7 +43,4 @@
 - [] Mettere la priorità sulla task
 - [] Gestire chi crea la task e di chi la completa
 - [] Gestire visualizzazione delle task completate con alternative come 
-- [] Salvare documenta su DB
-- [] Pull to refresh
-- [] Rendere visibile gli eventi con fine nel calendario
 - [] Refactor con routing system (LENTO?)

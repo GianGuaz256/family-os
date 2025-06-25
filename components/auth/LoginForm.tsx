@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { useState } from 'react'
+import { supabase, getAuthRedirectUrl } from '../../lib/supabase'
 import { ThemeSwitcher } from '../ui/ThemeSwitcher'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -29,7 +29,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
             email, 
             password,
             options: {
-              emailRedirectTo: `${window.location.origin}/auth/callback`
+              emailRedirectTo: getAuthRedirectUrl()
             }
           })
         : await supabase.auth.signInWithPassword({ email, password })

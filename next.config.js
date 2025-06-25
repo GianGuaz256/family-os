@@ -10,13 +10,13 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   images: {
-    domains: ["localhost"],
+    domains: ["localhost", "family.themewfi.xyz"],
   },
   experimental: {
     // appDir is no longer needed in Next.js 14
   },
-  // Enable standalone output for Docker optimization
-  output: "standalone",
+  // Allow CSS imports from specific node_modules packages
+  transpilePackages: ["@uiw/react-md-editor", "@uiw/react-markdown-preview"],
 };
 
 module.exports = withPWA(nextConfig);
