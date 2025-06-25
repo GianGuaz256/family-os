@@ -141,11 +141,26 @@ export const getCurrentTimezone = (): string => currentConfig.timezone
 // Date comparison utilities (timezone-aware)
 export const isUpcoming = (dateString: string): boolean => {
   try {
+    // Parse the date string and create UTC dates for consistent comparison
     const eventDate = new Date(dateString + 'T00:00:00')
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    eventDate.setHours(0, 0, 0, 0)
-    return eventDate >= today
+    
+    // Set both dates to UTC midnight for consistent comparison across timezones
+    const eventUTC = new Date(Date.UTC(
+      eventDate.getFullYear(),
+      eventDate.getMonth(),
+      eventDate.getDate(),
+      0, 0, 0, 0
+    ))
+    
+    const todayUTC = new Date(Date.UTC(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+      0, 0, 0, 0
+    ))
+    
+    return eventUTC >= todayUTC
   } catch {
     return false
   }
@@ -155,7 +170,23 @@ export const isPaymentSoon = (dateString: string, daysThreshold: number = 7): bo
   try {
     const paymentDate = new Date(dateString)
     const today = new Date()
-    const diffTime = paymentDate.getTime() - today.getTime()
+    
+    // Create UTC dates for consistent comparison across timezones
+    const paymentUTC = new Date(Date.UTC(
+      paymentDate.getFullYear(),
+      paymentDate.getMonth(),
+      paymentDate.getDate(),
+      0, 0, 0, 0
+    ))
+    
+    const todayUTC = new Date(Date.UTC(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+      0, 0, 0, 0
+    ))
+    
+    const diffTime = paymentUTC.getTime() - todayUTC.getTime()
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return diffDays <= daysThreshold && diffDays >= 0
   } catch {

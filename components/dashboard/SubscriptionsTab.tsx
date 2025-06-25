@@ -193,6 +193,35 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
       return start.toISOString().split('T')[0]
     }
     
+    // Helper function to safely add months while handling end-of-month dates
+    const addMonthsSafely = (date: Date, monthsToAdd: number): void => {
+      const originalDay = date.getDate()
+      const originalMonth = date.getMonth()
+      const originalYear = date.getFullYear()
+      
+      // Check if the original date is the last day of the month
+      const lastDayOfOriginalMonth = new Date(originalYear, originalMonth + 1, 0).getDate()
+      const isLastDayOfMonth = originalDay === lastDayOfOriginalMonth
+      
+      // Add the months
+      const targetMonth = originalMonth + monthsToAdd
+      const targetYear = originalYear + Math.floor(targetMonth / 12)
+      const adjustedTargetMonth = targetMonth % 12
+      
+      // Get the last day of the target month
+      const lastDayOfTargetMonth = new Date(targetYear, adjustedTargetMonth + 1, 0).getDate()
+      
+      // Set the new date
+      if (isLastDayOfMonth || originalDay > lastDayOfTargetMonth) {
+        // If original was last day of month or day doesn't exist in target month,
+        // set to last day of target month
+        date.setFullYear(targetYear, adjustedTargetMonth, lastDayOfTargetMonth)
+      } else {
+        // Otherwise, keep the same day
+        date.setFullYear(targetYear, adjustedTargetMonth, originalDay)
+      }
+    }
+    
     // Calculate next occurrence based on billing cycle
     while (nextPayment <= today) {
       switch (billingCycle) {
@@ -200,10 +229,10 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
           nextPayment.setDate(nextPayment.getDate() + 7)
           break
         case 'monthly':
-          nextPayment.setMonth(nextPayment.getMonth() + 1)
+          addMonthsSafely(nextPayment, 1)
           break
         case 'quarterly':
-          nextPayment.setMonth(nextPayment.getMonth() + 3)
+          addMonthsSafely(nextPayment, 3)
           break
         case 'yearly':
           nextPayment.setFullYear(nextPayment.getFullYear() + 1)

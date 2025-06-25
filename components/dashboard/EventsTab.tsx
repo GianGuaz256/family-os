@@ -70,6 +70,31 @@ interface Subscription {
   created_at: string
 }
 
+// Enhanced type interfaces for better type safety
+interface EventInstance extends Event {
+  isInstance: boolean
+  isFirstRecurrence?: boolean
+}
+
+interface EventWithRangeFlags extends Event {
+  isRangeStart?: boolean
+  isRangeEnd?: boolean
+  currentDate?: Date
+}
+
+interface EventWithSubscription extends Subscription {
+  event_type: 'subscription'
+  isSubscription: boolean
+  date: string // Use next_payment_date as date for display
+  start_datetime?: string
+  end_datetime?: string
+  description?: string // Add description for compatibility
+}
+
+// Union type for all possible event display variations
+type DisplayEvent = Event | EventInstance | EventWithRangeFlags | EventWithSubscription | 
+  (Event & { isInstance?: boolean; originalDate?: string; isSubscription?: boolean })
+
 interface EventsTabProps {
   events: Event[]
   subscriptions?: Subscription[]
@@ -147,7 +172,8 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     }
   }, [selectedDate])
 
-  const resetForm = () => {
+  // Helper function to reset only the event form state variables
+  const resetEventForm = () => {
     setNewEventTitle('')
     setNewEventDate('')
     setNewEventStartTime('')
@@ -158,6 +184,10 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     setRecurrencePattern('weekly')
     setRecurrenceInterval(1)
     setRecurrenceEndDate('')
+  }
+
+  const resetForm = () => {
+    resetEventForm()
     setEditingEvent(null)
     setSelectedEvent(null)
     setClickedEvent(null)
@@ -188,9 +218,9 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   }
 
   // Function to get the original event record for recurring events
-  const getOriginalEvent = async (event: Event): Promise<Event> => {
+  const getOriginalEvent = async (event: Event | EventInstance): Promise<Event> => {
     // If it's already the original record, return it
-    if (event.id.length <= 36 && !(event as any).isInstance) {
+    if (event.id.length <= 36 && !('isInstance' in event && event.isInstance)) {
       return event
     }
 
@@ -217,9 +247,15 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   }
 
   // Function to open the event info modal
-  const openEventInfoModal = async (event: Event) => {
-    const originalEvent = await getOriginalEvent(event)
-    setClickedEvent(event) // Store the originally clicked event
+  const openEventInfoModal = async (event: DisplayEvent) => {
+    // Handle subscription events differently - don't show modal for subscriptions
+    if (event.event_type === 'subscription') {
+      return // Don't open modal for subscription events
+    }
+    
+    const eventData = event as Event | EventInstance
+    const originalEvent = await getOriginalEvent(eventData)
+    setClickedEvent(eventData) // Store the originally clicked event
     setSelectedEvent(originalEvent) // Store the master record
     setShowEventInfoModal(true)
   }
@@ -242,16 +278,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     if (!selectedEvent) return
     
     // Reset form completely first to clear any cached values
-    setNewEventTitle('')
-    setNewEventDate('')
-    setNewEventStartTime('')
-    setNewEventEndTime('')
-    setNewEventEndDate('')
-    setNewEventType('single')
-    setNewEventDescription('')
-    setRecurrencePattern('weekly')
-    setRecurrenceInterval(1)
-    setRecurrenceEndDate('')
+    resetEventForm()
     
     // Now populate with the selected event data
     setEditingEvent(selectedEvent)
@@ -292,16 +319,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
 
   const openEditModal = (event: Event) => {
     // Reset form completely first to clear any cached values
-    setNewEventTitle('')
-    setNewEventDate('')
-    setNewEventStartTime('')
-    setNewEventEndTime('')
-    setNewEventEndDate('')
-    setNewEventType('single')
-    setNewEventDescription('')
-    setRecurrencePattern('weekly')
-    setRecurrenceInterval(1)
-    setRecurrenceEndDate('')
+    resetEventForm()
     
     // Now populate with the event data
     setEditingEvent(event)
@@ -351,21 +369,30 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   }
 
   // Helper to get event display time, accounting for full-day events
-  const getEventTimeDisplay = (event: Event, currentDate?: Date) => {
+  const getEventTimeDisplay = (event: DisplayEvent, currentDate?: Date) => {
+    // Handle subscription events differently
+    if ('isSubscription' in event && event.isSubscription) {
+      return null // Subscriptions don't have time displays
+    }
+    
+    // Cast to Event-like object for datetime access
+    const eventData = event as Event
+    
     // If it's a full-day event, don't show time
-    if (isFullDayEvent(event)) {
+    if (isFullDayEvent(eventData)) {
       return null
     }
 
-    const startTime = event.start_datetime ? formatTimeShort(event.start_datetime) : null
-    const endTime = event.end_datetime ? formatTimeShort(event.end_datetime) : null
+    const startTime = eventData.start_datetime ? formatTimeShort(eventData.start_datetime) : null
+    const endTime = eventData.end_datetime ? formatTimeShort(eventData.end_datetime) : null
     
     // Special handling for range events in list view (using isRangeStart/isRangeEnd flags) - check this FIRST
-    if ((event as any).isRangeStart || (event as any).isRangeEnd) {
-      if ((event as any).isRangeStart) {
+    const rangeEvent = event as EventWithRangeFlags
+    if (rangeEvent.isRangeStart || rangeEvent.isRangeEnd) {
+      if (rangeEvent.isRangeStart) {
         // Range start event, show only start time
         return startTime ? `From ${startTime}` : null
-      } else if ((event as any).isRangeEnd) {
+      } else if (rangeEvent.isRangeEnd) {
         // Range end event, show only end time
         return endTime ? `Until ${endTime}` : null
       }
@@ -967,7 +994,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
 
   // Create a filtered version for upcoming events list with special handling
   const getUpcomingListEvents = () => {
-    const upcomingListEvents: any[] = []
+    const upcomingListEvents: DisplayEvent[] = []
     
     events.forEach(event => {
       if (event.event_type === 'recurring') {
@@ -1006,14 +1033,14 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   }
 
   // Combine events and subscriptions based on filter
-  const getFilteredEvents = () => {
+  const getFilteredEvents = (): DisplayEvent[] => {
     switch (eventFilter) {
       case 'events':
         return expandedEvents
       case 'subscriptions':
-        return subscriptionEvents as any[]
+        return subscriptionEvents as EventWithSubscription[]
       default:
-        return [...expandedEvents, ...subscriptionEvents] as any[]
+        return [...expandedEvents, ...subscriptionEvents] as DisplayEvent[]
     }
   }
 
@@ -1021,14 +1048,14 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   const upcomingListEvents = getUpcomingListEvents()
 
   // Apply filter to list events based on eventFilter
-  const getFilteredListEvents = () => {
+  const getFilteredListEvents = (): DisplayEvent[] => {
     switch (eventFilter) {
       case 'events':
         return upcomingListEvents // Only events, no subscriptions
       case 'subscriptions':
-        return subscriptionEvents as any[] // Only subscriptions, no events
+        return subscriptionEvents as EventWithSubscription[] // Only subscriptions, no events
       default:
-        return [...upcomingListEvents, ...subscriptionEvents] as any[] // All events and subscriptions
+        return [...upcomingListEvents, ...subscriptionEvents] as DisplayEvent[] // All events and subscriptions
     }
   }
 
@@ -1073,7 +1100,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
       // For list view, count all available events and subscriptions
       // regardless of current filter (show what would be available for each filter)
       // Use raw data, not filtered data
-      const rawListEvents: any[] = []
+      const rawListEvents: DisplayEvent[] = []
       
       // Process all events without filter
       events.forEach(event => {
@@ -1131,19 +1158,21 @@ export const EventsTab: React.FC<EventsTabProps> = ({
 
 
   // Helper function to get event type info
-  const getEventTypeInfo = (event: any) => {
+  const getEventTypeInfo = (event: DisplayEvent) => {
     // Handle special upcoming list event types
-    if (event.isFirstRecurrence) {
+    const eventInstance = event as EventInstance
+    if ('isFirstRecurrence' in event && eventInstance.isFirstRecurrence) {
       return {
         icon: Repeat,
-        label: `First of recurring ${event.recurrence_pattern}`,
+        label: `First of recurring ${eventInstance.recurrence_pattern}`,
         color: 'text-blue-600',
         bgColor: 'bg-blue-100',
         borderColor: 'border-l-blue-500'
       }
     }
     
-    if (event.isRangeStart) {
+    const rangeEvent = event as EventWithRangeFlags
+    if ('isRangeStart' in event && rangeEvent.isRangeStart) {
       return {
         icon: CalendarDays,
         label: `Range Start`,
@@ -1153,7 +1182,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
       }
     }
     
-    if (event.isRangeEnd) {
+    if ('isRangeEnd' in event && rangeEvent.isRangeEnd) {
       return {
         icon: CalendarDays,
         label: `Range End`,
@@ -1226,8 +1255,8 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     }
   })
 
-  const upcomingEvents = sortedFilteredListEvents.filter((event: any) => isUpcoming(event.date))
-  const pastEvents = sortedFilteredListEvents.filter((event: any) => !isUpcoming(event.date))
+      const upcomingEvents = sortedFilteredListEvents.filter((event: DisplayEvent) => isUpcoming(event.date))
+    const pastEvents = sortedFilteredListEvents.filter((event: DisplayEvent) => !isUpcoming(event.date))
 
   // Get minimum date for input (today)
   const today = formatDateForInput(new Date())
@@ -1263,7 +1292,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
 
   // Reusable Event Card Component
   const EventCard: React.FC<{
-    event: any // Using any to handle both events and subscriptions
+    event: DisplayEvent
     variant?: 'list' | 'compact'
     showDate?: boolean
     currentDate?: Date // Add currentDate prop for range events
@@ -1271,10 +1300,12 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     const typeInfo = getEventTypeInfo(event)
     const TypeIcon = typeInfo.icon
     // Use currentDate from event object (for range events) or fallback to prop or event date
-    const contextDate = event.currentDate || currentDate || new Date(event.date + 'T00:00:00')
+    const eventWithFlags = event as EventWithRangeFlags
+    const eventWithSub = event as EventWithSubscription
+    const contextDate = eventWithFlags.currentDate || currentDate || new Date(event.date + 'T00:00:00')
     const timeDisplay = getEventTimeDisplay(event, contextDate)
     const isUpcomingEvent = isUpcoming(event.date)
-    const isSubscription = event.isSubscription || event.event_type === 'subscription'
+    const isSubscription = eventWithSub.isSubscription || event.event_type === 'subscription'
     
     if (variant === 'compact') {
       return (
@@ -1519,7 +1550,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                 Upcoming Events
               </h3>
               <div className="space-y-3">
-                {upcomingEvents.map((event: any) => (
+                {upcomingEvents.map((event: DisplayEvent) => (
                   <EventCard key={event.id} event={event} variant="list" />
                 ))}
               </div>
@@ -1534,7 +1565,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                 Past Events
               </h3>
               <div className="space-y-3">
-                {pastEvents.map((event: any) => (
+                {pastEvents.map((event: DisplayEvent) => (
                   <EventCard key={event.id} event={event} variant="list" />
                 ))}
               </div>
