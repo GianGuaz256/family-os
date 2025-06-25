@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { supabase, getAuthRedirectUrl } from '../../lib/supabase'
 import { ThemeSwitcher } from '../ui/ThemeSwitcher'
 import { Button } from '../ui/button'

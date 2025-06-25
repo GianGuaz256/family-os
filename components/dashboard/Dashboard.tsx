@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
-import { ThemeSwitcher } from '../ui/ThemeSwitcher'
 import { BottomActions } from '../ui/BottomActions'
 import { PullToRefreshIndicator } from '../ui/PullToRefreshIndicator'
 import { ListsTab } from './ListsTab'
@@ -9,21 +8,13 @@ import { DocumentsTab } from './DocumentsTab'
 import { EventsTab } from './EventsTab'
 import { CardsTab } from './CardsTab'
 import { SubscriptionsTab } from './SubscriptionsTab'
+import { NotesTab } from './NotesTab'
 import { SettingsTab } from './SettingsTab'
 import { usePullToRefresh } from '../../hooks/usePullToRefresh'
-import { 
-  List, 
-  FileText, 
-  Calendar, 
-  CreditCard, 
-  DollarSign,
-  LogOut, 
-  ArrowLeft, 
+import {  
   ChevronDown,
   Home,
-  Users,
   Plus,
-  Settings,
   Camera,
   Heart,
   Star,
@@ -31,7 +22,12 @@ import {
   Flower,
   Sun,
   Moon,
-  QrCode
+  FolderOpen,
+  CalendarDays,
+  Wallet,
+  RotateCcw,
+  Edit3,
+  CheckSquare
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
@@ -66,7 +62,7 @@ interface DashboardProps {
   isOnline: boolean
 }
 
-type AppView = 'home' | 'lists' | 'documents' | 'events' | 'cards' | 'subscriptions' | 'settings'
+type AppView = 'home' | 'lists' | 'documents' | 'events' | 'cards' | 'subscriptions' | 'notes' | 'settings'
 
 export const Dashboard: React.FC<DashboardProps> = ({
   user,
@@ -82,17 +78,213 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [events, setEvents] = useState<any[]>([])
   const [cards, setCards] = useState<any[]>([])
   const [subscriptions, setSubscriptions] = useState<any[]>([])
+  const [notes, setNotes] = useState<any[]>([])
   const [allGroups, setAllGroups] = useState<FamilyGroup[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [isSwitchingFamily, setIsSwitchingFamily] = useState(false)
 
+  // Debouncing refs to prevent excessive calls
+  const fetchTimeoutRef = useRef<NodeJS.Timeout>()
+  const lastFetchRef = useRef<number>(0)
+  const DEBOUNCE_DELAY = 1000 // 1 second debounce
+
+  // Selective fetch functions - only fetch what's needed
+  const fetchSpecificData = useCallback(async (table: string) => {
+    if (!isOnline) return
+
+    const now = Date.now()
+    
+    // Clear any pending fetch
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current)
+    }
+
+    // Debounce rapid calls
+    if (now - lastFetchRef.current < DEBOUNCE_DELAY) {
+      fetchTimeoutRef.current = setTimeout(() => fetchSpecificData(table), DEBOUNCE_DELAY)
+      return
+    }
+
+    lastFetchRef.current = now
+
+    try {
+      switch (table) {
+        case 'lists':
+          const { data: listsData } = await supabase
+            .from('lists')
+            .select('*')
+            .eq('group_id', group.id)
+            .order('created_at', { ascending: false })
+          setLists(listsData || [])
+          break
+
+        case 'documents':
+          const { data: documentsData } = await supabase
+            .from('documents')
+            .select('*')
+            .eq('group_id', group.id)
+            .order('created_at', { ascending: false })
+          setDocuments(documentsData || [])
+          break
+
+        case 'events':
+          const { data: eventsData } = await supabase
+            .from('events')
+            .select('*')
+            .eq('group_id', group.id)
+            .order('date', { ascending: true })
+          setEvents(eventsData || [])
+          break
+
+        case 'cards':
+          const { data: cardsData } = await supabase
+            .from('cards')
+            .select('*')
+            .eq('group_id', group.id)
+            .order('created_at', { ascending: false })
+          setCards(cardsData || [])
+          break
+
+        case 'subscriptions':
+          const { data: subscriptionsData } = await supabase
+            .from('subscriptions')
+            .select('*')
+            .eq('group_id', group.id)
+            .order('created_at', { ascending: false })
+          setSubscriptions(subscriptionsData || [])
+          break
+
+        case 'notes':
+          const { data: notesData } = await supabase
+            .from('notes')
+            .select('*')
+            .eq('group_id', group.id)
+            .order('created_at', { ascending: false })
+          setNotes(notesData || [])
+          break
+      }
+    } catch (error) {
+      console.error(`Error fetching ${table}:`, error)
+    }
+  }, [group.id, isOnline])
+
+  // Optimized initial data fetch - parallel queries
+  const fetchData = useCallback(async () => {
+    if (!isOnline) return
+
+    try {
+      setIsLoadingData(true)
+      
+      // Execute all queries in parallel for initial load
+      const [
+        listsResult,
+        documentsResult,
+        eventsResult,
+        cardsResult,
+        subscriptionsResult,
+        notesResult
+      ] = await Promise.all([
+        supabase.from('lists').select('*').eq('group_id', group.id).order('created_at', { ascending: false }),
+        supabase.from('documents').select('*').eq('group_id', group.id).order('created_at', { ascending: false }),
+        supabase.from('events').select('*').eq('group_id', group.id).order('date', { ascending: true }),
+        supabase.from('cards').select('*').eq('group_id', group.id).order('created_at', { ascending: false }),
+        supabase.from('subscriptions').select('*').eq('group_id', group.id).order('created_at', { ascending: false }),
+        supabase.from('notes').select('*').eq('group_id', group.id).order('created_at', { ascending: false })
+      ])
+
+      setLists(listsResult.data || [])
+      setDocuments(documentsResult.data || [])
+      setEvents(eventsResult.data || [])
+      setCards(cardsResult.data || [])
+      setSubscriptions(subscriptionsResult.data || [])
+      setNotes(notesResult.data || [])
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setIsLoadingData(false)
+      setIsSwitchingFamily(false)
+    }
+  }, [group.id, isOnline])
+
+  const fetchAllGroups = useCallback(async () => {
+    if (!isOnline) return
+
+    try {
+      const { data, error } = await supabase
+        .from('group_members')
+        .select(`
+          family_groups (
+            id,
+            name,
+            owner_id,
+            invite_code,
+            icon
+          )
+        `)
+        .eq('user_id', user.id)
+
+      if (error) throw error
+      
+      const familyGroups = (data as any)
+        ?.map((item: any) => item.family_groups)
+        .filter(Boolean) as FamilyGroup[]
+      
+      setAllGroups(familyGroups || [])
+    } catch (error) {
+      console.error('Error fetching all groups:', error)
+    }
+  }, [user.id, isOnline])
+
+  // Optimized realtime subscriptions - selective updates only
+  const setupRealtimeSubscriptions = useCallback(() => {
+    // Remove any existing channel with the same name first
+    const channelName = `optimized-family-updates-${group.id}`
+    const existingChannel = supabase.getChannels().find(ch => ch.topic === `realtime:${channelName}`)
+    if (existingChannel) {
+      supabase.removeChannel(existingChannel)
+    }
+
+    const channel = supabase
+      .channel(channelName)
+      // Only update specific data when specific tables change
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'lists', filter: `group_id=eq.${group.id}` },
+        () => fetchSpecificData('lists')
+      )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'documents', filter: `group_id=eq.${group.id}` },
+        () => fetchSpecificData('documents')
+      )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'events', filter: `group_id=eq.${group.id}` },
+        () => fetchSpecificData('events')
+      )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'cards', filter: `group_id=eq.${group.id}` },
+        () => fetchSpecificData('cards')
+      )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'subscriptions', filter: `group_id=eq.${group.id}` },
+        () => fetchSpecificData('subscriptions')
+      )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'notes', filter: `group_id=eq.${group.id}` },
+        () => fetchSpecificData('notes')
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [group.id, fetchSpecificData])
+
   // Pull-to-refresh functionality
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     await Promise.all([
       fetchData(),
       fetchAllGroups()
     ])
-  }
+  }, [fetchData, fetchAllGroups])
 
   const { isRefreshing, pullDistance, containerRef } = usePullToRefresh({
     onRefresh: handleRefresh,
@@ -121,124 +313,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
       if (cleanup) {
         cleanup()
       }
+      // Cleanup timeout on unmount
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current)
+      }
     }
-  }, [group.id, isOnline])
-
-  const fetchData = async () => {
-    try {
-      setIsLoadingData(true)
-      
-      // Fetch lists
-      const { data: listsData } = await supabase
-        .from('lists')
-        .select('*')
-        .eq('group_id', group.id)
-        .order('created_at', { ascending: false })
-      
-      // Fetch documents
-      const { data: documentsData } = await supabase
-        .from('documents')
-        .select('*')
-        .eq('group_id', group.id)
-        .order('created_at', { ascending: false })
-      
-      // Fetch events
-      const { data: eventsData } = await supabase
-        .from('events')
-        .select('*')
-        .eq('group_id', group.id)
-        .order('date', { ascending: true })
-      
-      // Fetch cards
-      const { data: cardsData } = await supabase
-        .from('cards')
-        .select('*')
-        .eq('group_id', group.id)
-        .order('created_at', { ascending: false })
-      
-      // Fetch subscriptions
-      const { data: subscriptionsData } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('group_id', group.id)
-        .order('created_at', { ascending: false })
-
-      setLists(listsData || [])
-      setDocuments(documentsData || [])
-      setEvents(eventsData || [])
-      setCards(cardsData || [])
-      setSubscriptions(subscriptionsData || [])
-    } catch (error) {
-      console.error('Error fetching data:', error)
-    } finally {
-      setIsLoadingData(false)
-      setIsSwitchingFamily(false)
-    }
-  }
-
-  const fetchAllGroups = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('group_members')
-        .select(`
-          family_groups (
-            id,
-            name,
-            owner_id,
-            invite_code,
-            icon
-          )
-        `)
-        .eq('user_id', user.id)
-
-      if (error) throw error
-      
-      const familyGroups = (data as any)
-        ?.map((item: any) => item.family_groups)
-        .filter(Boolean) as FamilyGroup[]
-      
-      setAllGroups(familyGroups || [])
-    } catch (error) {
-      console.error('Error fetching all groups:', error)
-    }
-  }
-
-  const setupRealtimeSubscriptions = () => {
-    // Remove any existing channel with the same name first
-    const channelName = `family-updates-${group.id}`
-    const existingChannel = supabase.getChannels().find(ch => ch.topic === `realtime:${channelName}`)
-    if (existingChannel) {
-      supabase.removeChannel(existingChannel)
-    }
-
-    const channel = supabase
-      .channel(channelName)
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'lists', filter: `group_id=eq.${group.id}` },
-        () => fetchData()
-      )
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'documents', filter: `group_id=eq.${group.id}` },
-        () => fetchData()
-      )
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'events', filter: `group_id=eq.${group.id}` },
-        () => fetchData()
-      )
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'cards', filter: `group_id=eq.${group.id}` },
-        () => fetchData()
-      )
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'subscriptions', filter: `group_id=eq.${group.id}` },
-        () => fetchData()
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }
+  }, [group.id, isOnline, fetchData, fetchAllGroups, setupRealtimeSubscriptions])
 
   const handleGroupSwitch = async (newGroup: FamilyGroup) => {
     setIsSwitchingFamily(true)
@@ -277,42 +357,50 @@ export const Dashboard: React.FC<DashboardProps> = ({
     {
       id: 'lists' as const,
       name: 'Lists',
-      icon: List,
-      color: 'from-blue-400 to-blue-600',
+      icon: CheckSquare,
+      color: 'from-cyan-400 via-blue-500 to-indigo-600',
       count: lists.length,
       description: 'Shopping & To-dos'
     },
     {
       id: 'documents' as const,
       name: 'Documents',
-      icon: FileText,
-      color: 'from-green-400 to-green-600',
+      icon: FolderOpen,
+      color: 'from-emerald-400 via-teal-500 to-green-600',
       count: documents.length,
       description: 'Important Files'
     },
     {
       id: 'events' as const,
       name: 'Events',
-      icon: Calendar,
-      color: 'from-purple-400 to-purple-600',
+      icon: CalendarDays,
+      color: 'from-violet-400 via-purple-500 to-indigo-600',
       count: events.length,
       description: 'Family Calendar'
     },
     {
       id: 'cards' as const,
       name: 'Cards',
-      icon: CreditCard,
-      color: 'from-orange-400 to-orange-600',
+      icon: Wallet,
+      color: 'from-orange-400 via-red-500 to-pink-600',
       count: cards.length,
       description: 'Loyalty Cards'
     },
     {
       id: 'subscriptions' as const,
       name: 'Subscriptions',
-      icon: DollarSign,
-      color: 'from-pink-400 to-pink-600',
+      icon: RotateCcw,
+      color: 'from-yellow-400 via-orange-500 to-red-600',
       count: subscriptions.length,
       description: 'Family Plans'
+    },
+    {
+      id: 'notes' as const,
+      name: 'Notes',
+      icon: Edit3,
+      color: 'from-pink-400 via-rose-500 to-purple-600',
+      count: notes.length,
+      description: 'Family Notes'
     }
   ]
 
@@ -405,6 +493,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
           disabled: !isOnline
         })
         break
+      case 'notes':
+        actions.push({
+          icon: Plus,
+          label: 'Create Note',
+          onClick: () => {
+            const event = new CustomEvent('openCreateModal', { detail: { type: 'note' } })
+            window.dispatchEvent(event)
+          },
+          disabled: !isOnline
+        })
+        break
     }
     
     return actions
@@ -435,6 +534,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               groupId={group.id} 
               onUpdate={fetchData}
               isOnline={isOnline}
+              appConfig={apps.find(app => app.id === 'lists')}
             />
           )}
           {currentView === 'documents' && (
@@ -444,6 +544,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onUpdate={fetchData}
               isOnline={isOnline}
               currentUserId={user.id}
+              appConfig={apps.find(app => app.id === 'documents')}
             />
           )}
           {currentView === 'events' && (
@@ -453,6 +554,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               groupId={group.id} 
               onUpdate={fetchData}
               isOnline={isOnline}
+              appConfig={apps.find(app => app.id === 'events')}
             />
           )}
           {currentView === 'cards' && (
@@ -461,6 +563,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               groupId={group.id} 
               onUpdate={fetchData}
               isOnline={isOnline}
+              appConfig={apps.find(app => app.id === 'cards')}
             />
           )}
           {currentView === 'subscriptions' && (
@@ -470,6 +573,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onUpdate={fetchData}
               isOnline={isOnline}
               currentUser={user}
+              appConfig={apps.find(app => app.id === 'subscriptions')}
+            />
+          )}
+          {currentView === 'notes' && (
+            <NotesTab 
+              notes={notes} 
+              groupId={group.id} 
+              onUpdate={fetchData}
+              isOnline={isOnline}
+              currentUserId={user.id}
+              isGroupOwner={group.owner_id === user.id}
+              appConfig={apps.find(app => app.id === 'notes')}
             />
           )}
           {currentView === 'settings' && (
@@ -630,7 +745,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 >
                   {/* App Icon Container */}
                   <div className="relative">
-                    <div className={`w-20 h-20 bg-gradient-to-br ${app.color} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 group-active:scale-95 transition-transform duration-200`}>
+                    <div className={`w-20 h-20 bg-gradient-to-br ${app.color} rounded-[20px] flex items-center justify-center shadow-lg group-hover:scale-110 group-active:scale-95 transition-transform duration-200`}>
                       <app.icon className="h-10 w-10 text-white" />
                     </div>
                   

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -12,6 +12,8 @@ import {
 } from '../ui/dialog'
 import { VirtualCard } from '../ui/VirtualCard'
 import { BarcodeScanner } from '../ui/BarcodeScanner'
+import { AppHeader } from '../ui/AppHeader'
+import { AppConfig } from '../../lib/app-types'
 import { CreditCard, Plus, Trash2, Edit, X, FileText, QrCode } from 'lucide-react'
 
 interface LoyaltyCard {
@@ -31,13 +33,15 @@ interface CardsTabProps {
   groupId: string
   onUpdate: () => void
   isOnline: boolean
+  appConfig?: AppConfig
 }
 
 export const CardsTab: React.FC<CardsTabProps> = ({
   cards,
   groupId,
   onUpdate,
-  isOnline
+  isOnline,
+  appConfig
 }) => {
   const [showScanModal, setShowScanModal] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -171,9 +175,23 @@ export const CardsTab: React.FC<CardsTabProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Loyalty Cards</h2>
-      </div>
+      {/* App Header with icon and styling */}
+      {appConfig && (
+        <AppHeader
+          title={appConfig.name}
+          appIcon={appConfig.icon}
+          appColor={appConfig.color}
+          appDescription={appConfig.description}
+          transparent={true}
+          showUserControls={false}
+        />
+      )}
+      
+      {!appConfig && (
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Loyalty Cards</h2>
+        </div>
+      )}
 
       {cards.length === 0 ? (
         <div className="text-center py-12">

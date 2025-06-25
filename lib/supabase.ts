@@ -306,6 +306,38 @@ export type Database = {
           created_at?: string
         }
       }
+      notes: {
+        Row: {
+          id: string
+          group_id: string
+          title: string
+          content: string
+          is_important: boolean
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          group_id: string
+          title: string
+          content: string
+          is_important?: boolean
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          group_id?: string
+          title?: string
+          content?: string
+          is_important?: boolean
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
   }
 } 

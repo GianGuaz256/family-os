@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Card, CardHeader, CardContent } from '../ui/card'
 import { Checkbox } from '../ui/checkbox'
+import { AppHeader } from '../ui/AppHeader'
 import {
   Dialog,
   DialogContent,
@@ -12,7 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog'
-import { Plus, Trash2, Check } from 'lucide-react'
+import { AppConfig } from '../../lib/app-types'
+import { Plus, Trash2 } from 'lucide-react'
 
 interface ListItem {
   id: number
@@ -32,13 +34,15 @@ interface ListsTabProps {
   groupId: string
   onUpdate: () => void
   isOnline: boolean
+  appConfig?: AppConfig
 }
 
 export const ListsTab: React.FC<ListsTabProps> = ({
   lists,
   groupId,
   onUpdate,
-  isOnline
+  isOnline,
+  appConfig
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newListTitle, setNewListTitle] = useState('')
@@ -164,9 +168,23 @@ export const ListsTab: React.FC<ListsTabProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Lists</h2>
-      </div>
+      {/* App Header with icon and styling */}
+      {appConfig && (
+        <AppHeader
+          title={appConfig.name}
+          appIcon={appConfig.icon}
+          appColor={appConfig.color}
+          appDescription={appConfig.description}
+          transparent={true}
+          showUserControls={false}
+        />
+      )}
+      
+      {!appConfig && (
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Lists</h2>
+        </div>
+      )}
 
       {lists.length === 0 ? (
         <div className="text-center py-12">

@@ -31,7 +31,10 @@ CREATE INDEX IF NOT EXISTS idx_documents_uploaded_by ON documents(uploaded_by);
 
 -- Create a function to update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_documents_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+SET search_path = ''
+SECURITY DEFINER
+AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
@@ -47,7 +50,10 @@ CREATE TRIGGER update_documents_updated_at_trigger
 
 -- Create a function to get document size for display
 CREATE OR REPLACE FUNCTION format_file_size(size_in_bytes INTEGER)
-RETURNS TEXT AS $$
+RETURNS TEXT 
+SET search_path = ''
+SECURITY DEFINER
+AS $$
 BEGIN
   IF size_in_bytes IS NULL THEN
     RETURN 'Unknown';
@@ -80,22 +86,43 @@ CREATE POLICY "Group members can view document files" ON documents
     )
   );
 
--- Create a view for documents with formatted file sizes (useful for displaying)
-CREATE OR REPLACE VIEW documents_with_metadata AS
+-- Drop the existing view first to avoid column mismatch errors
+DROP VIEW IF EXISTS documents_with_metadata;
+
+-- Create a secure view for documents with formatted file sizes (useful for displaying)
+-- This view respects RLS and does not expose auth.users data
+CREATE VIEW documents_with_metadata 
+WITH (security_invoker = true) AS
 SELECT 
-  d.*,
+  d.id,
+  d.group_id,
+  d.name,
+  d.url,
+  d.file_data,
+  d.file_size,
+  d.mime_type,
+  d.file_extension,
+  d.uploaded_by,
+  d.created_at,
+  d.updated_at,
   format_file_size(d.file_size) as formatted_file_size,
   CASE 
     WHEN d.file_data IS NOT NULL THEN 'file'
     WHEN d.url IS NOT NULL THEN 'url'
     ELSE 'unknown'
-  END as document_type,
-  u.email as uploaded_by_email
+  END as document_type
 FROM documents d
-LEFT JOIN auth.users u ON d.uploaded_by = u.id;
+WHERE 
+  -- Apply the same RLS logic as the base table
+  d.group_id IN (
+    SELECT group_id FROM group_members WHERE user_id = auth.uid()
+  );
 
--- Grant necessary permissions
+-- Grant permissions only to authenticated users (not anon)
 GRANT SELECT ON documents_with_metadata TO authenticated;
+
+-- Ensure anon users cannot access this view
+REVOKE ALL ON documents_with_metadata FROM anon;
 
 -- Enable realtime for the enhanced documents table (only if not already added)
 DO $$

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -7,6 +7,7 @@ import { Card, CardContent } from '../ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { FileUpload } from '../ui/FileUpload'
 import { Alert, AlertDescription } from '../ui/alert'
+import { AppHeader } from '../ui/AppHeader'
 import {
   Dialog,
   DialogContent,
@@ -14,17 +15,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog'
+import { AppConfig } from '../../lib/app-types'
 import { 
-  Plus, 
-  FileText, 
   ExternalLink, 
   Trash2, 
   Download, 
-  User, 
-  Calendar,
-  AlertCircle,
-  CheckCircle,
-  Link
+  AlertCircle
 } from 'lucide-react'
 import {
   uploadDocument,
@@ -33,7 +29,6 @@ import {
   triggerFileDownload,
   formatFileSize,
   getFileTypeIcon,
-  type DatabaseResult
 } from '../../lib/document-utils'
 
 interface Document {
@@ -55,6 +50,7 @@ interface DocumentsTabProps {
   onUpdate: () => void
   isOnline: boolean
   currentUserId: string
+  appConfig?: AppConfig
 }
 
 type UploadMode = 'file' | 'url'
@@ -64,7 +60,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
   groupId,
   onUpdate,
   isOnline,
-  currentUserId
+  currentUserId,
+  appConfig
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [uploadMode, setUploadMode] = useState<UploadMode>('file')
@@ -241,9 +238,23 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Documents</h2>
-      </div>
+      {/* App Header with icon and styling */}
+      {appConfig && (
+        <AppHeader
+          title={appConfig.name}
+          appIcon={appConfig.icon}
+          appColor={appConfig.color}
+          appDescription={appConfig.description}
+          transparent={true}
+          showUserControls={false}
+        />
+      )}
+      
+      {!appConfig && (
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Documents</h2>
+        </div>
+      )}
 
       {documents.length === 0 ? (
         <div className="text-center py-12">

@@ -1,6 +1,5 @@
 import React from 'react'
 import { User } from '@supabase/supabase-js'
-import { ThemeSwitcher } from './ThemeSwitcher'
 import { Button } from './button'
 import { Avatar, AvatarFallback } from './avatar'
 import {
@@ -11,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './dropdown-menu'
-import { ArrowLeft, LogOut, Settings, Users, Home } from 'lucide-react'
+import { ArrowLeft, LogOut, Settings, Users, Home, LucideIcon } from 'lucide-react'
 
 interface AppHeaderProps {
   user?: User | null
@@ -22,6 +21,10 @@ interface AppHeaderProps {
   onManageFamilies?: () => void
   showUserControls?: boolean
   transparent?: boolean
+  appIcon?: LucideIcon
+  appColor?: string
+  appDescription?: string
+  viewSwitcher?: React.ReactNode
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -32,13 +35,17 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onLogout,
   onManageFamilies,
   showUserControls = true,
-  transparent = false
+  transparent = false,
+  appIcon: AppIcon,
+  appColor,
+  appDescription,
+  viewSwitcher
 }) => {
   return (
-    <div className={`${transparent ? 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-white/20' : 'bg-background border-b'} sticky top-0 z-50`}>
-      <div className="flex items-center justify-between p-4">
-        {/* Left side - Back button or title */}
-        <div className="flex items-center gap-2">
+    <div className={`${transparent ? 'dark:bg-slate-900/80 backdrop-blur-lg border-b rounded-xl border-white/20' : 'bg-background border-b'} sticky top-0 z-50`}>
+      <div className="flex items-center justify-between p-4 mx-4">
+        {/* Left side - Back button or app info */}
+        <div className="flex items-center gap-3">
           {showBackButton && onBack ? (
             <Button
               variant="ghost"
@@ -50,18 +57,30 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               Back
             </Button>
           ) : (
-            <div className="flex items-center gap-2">
-              {title && (
+            <div className="flex items-center gap-3 w-full">
+              {/* App Icon and Title */}
+              {AppIcon && appColor && title ? (
+                <>
+                  <div className={`w-12 h-12 bg-gradient-to-br ${appColor} rounded-xl flex items-center justify-center shadow-lg`}>
+                    <AppIcon className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-bold">{title}</h1>
+                    {appDescription && (
+                      <p className="text-sm text-muted-foreground">{appDescription}</p>
+                    )}
+                  </div>
+                </>
+              ) : title ? (
                 <h1 className="text-lg font-semibold">{title}</h1>
-              )}
+              ) : null}
             </div>
           )}
         </div>
         
         {/* Right side - Controls */}
         <div className="flex items-center gap-2">
-          <ThemeSwitcher size="sm" showLabel={false} />
-          
+          {viewSwitcher && viewSwitcher}
           {user && showUserControls && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
