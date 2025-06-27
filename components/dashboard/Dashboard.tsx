@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
 import { BottomActions } from '../ui/BottomActions'
 import { PullToRefreshIndicator } from '../ui/PullToRefreshIndicator'
@@ -72,6 +73,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onSwitchFamily,
   isOnline
 }) => {
+  const { t } = useTranslation()
   const [currentView, setCurrentView] = useState<AppView>('home')
   const [lists, setLists] = useState<any[]>([])
   const [documents, setDocuments] = useState<any[]>([])
@@ -362,64 +364,66 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const apps = [
     {
       id: 'lists' as const,
-      name: 'Lists',
+      name: t('dashboard.tabs.lists'),
       icon: CheckSquare,
       color: 'from-cyan-400 via-blue-500 to-indigo-600',
       count: lists.length,
-      description: 'Shopping & To-dos'
+      description: t('lists.description')
     },
     {
       id: 'documents' as const,
-      name: 'Documents',
+      name: t('dashboard.tabs.documents'),
       icon: FolderOpen,
       color: 'from-emerald-400 via-teal-500 to-green-600',
       count: documents.length,
-      description: 'Important Files'
+      description: t('documents.description')
     },
     {
       id: 'events' as const,
-      name: 'Events',
+      name: t('dashboard.tabs.events'),
       icon: CalendarDays,
       color: 'from-violet-400 via-purple-500 to-indigo-600',
       count: events.length,
-      description: 'Family Calendar'
+      description: t('events.description')
     },
     {
       id: 'cards' as const,
-      name: 'Cards',
+      name: t('dashboard.tabs.cards'),
       icon: Wallet,
       color: 'from-orange-400 via-red-500 to-pink-600',
       count: cards.length,
-      description: 'Loyalty Cards'
+      description: t('cards.description')
     },
     {
       id: 'subscriptions' as const,
-      name: 'Subscriptions',
+      name: t('dashboard.tabs.subscriptions'),
       icon: RotateCcw,
       color: 'from-yellow-400 via-orange-500 to-red-600',
       count: subscriptions.length,
-      description: 'Family Plans'
+      description: t('subscriptions.description')
     },
     {
       id: 'notes' as const,
-      name: 'Notes',
+      name: t('dashboard.tabs.notes'),
       icon: Edit3,
       color: 'from-pink-400 via-rose-500 to-purple-600',
       count: notes.length,
-      description: 'Family Notes'
+      description: t('notes.description')
     }
   ]
 
   const formatTime = () => {
-    return new Date().toLocaleTimeString('en-US', {
+    const locale = t('app.locale', { fallback: 'en-US' })
+    return new Date().toLocaleTimeString(locale, {
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
+      hour12: locale.startsWith('en')
     })
   }
 
   const formatDate = () => {
-    return new Date().toLocaleDateString('en-US', {
+    const locale = t('app.locale', { fallback: 'en-US' })
+    return new Date().toLocaleDateString(locale, {
       weekday: 'long',
       month: 'long',
       day: 'numeric'
@@ -434,7 +438,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       case 'lists':
         actions.push({
           icon: Plus,
-          label: 'Create New List',
+          label: t('lists.createList'),
           onClick: () => {
             // This will be handled by the ListsTab component's state
             const event = new CustomEvent('openCreateModal', { detail: { type: 'list' } })
@@ -446,7 +450,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       case 'documents':
         actions.push({
           icon: Plus,
-          label: 'Add Document',
+          label: t('documents.uploadDocument'),
           onClick: () => {
             const event = new CustomEvent('openCreateModal', { detail: { type: 'document' } })
             window.dispatchEvent(event)
@@ -457,7 +461,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       case 'events':
         actions.push({
           icon: Plus,
-          label: 'Add Event',
+          label: t('events.createEvent'),
           onClick: () => {
             const event = new CustomEvent('openCreateModal', { detail: { type: 'event' } })
             window.dispatchEvent(event)
@@ -469,7 +473,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         actions.push(
           {
             icon: Camera,
-            label: 'Scan Card',
+            label: t('cards.scanCard'),
             onClick: () => {
               const event = new CustomEvent('openCreateModal', { detail: { type: 'scan' } })
               window.dispatchEvent(event)
@@ -479,7 +483,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           },
           {
             icon: Plus,
-            label: 'Add Card',
+            label: t('cards.addCard'),
             onClick: () => {
               const event = new CustomEvent('openCreateModal', { detail: { type: 'card' } })
               window.dispatchEvent(event)
@@ -491,7 +495,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       case 'subscriptions':
         actions.push({
           icon: Plus,
-          label: 'Add Subscription',
+          label: t('subscriptions.addSubscription'),
           onClick: () => {
             const event = new CustomEvent('openCreateModal', { detail: { type: 'subscription' } })
             window.dispatchEvent(event)
@@ -502,7 +506,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       case 'notes':
         actions.push({
           icon: Plus,
-          label: 'Create Note',
+          label: t('notes.createNote'),
           onClick: () => {
             const event = new CustomEvent('openCreateModal', { detail: { type: 'note' } })
             window.dispatchEvent(event)
@@ -645,7 +649,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <div>
                         <div className="font-semibold text-lg">{group.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {isSwitchingFamily ? 'Switching family...' : 'Current Family'}
+                          {isSwitchingFamily ? t('dashboard.switchingFamily') : t('dashboard.currentFamily')}
                         </div>
                       </div>
                     </div>
@@ -679,7 +683,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-base truncate">{familyGroup.name}</div>
                         <div className="text-xs text-muted-foreground">
-                          {familyGroup.id === group.id ? 'Current Family' : 'Switch to this family'}
+                          {familyGroup.id === group.id ? t('dashboard.currentFamily') : t('dashboard.switchToFamily')}
                         </div>
                       </div>
                     </div>
@@ -695,8 +699,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <Plus className="h-4 w-4 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-base">Manage Families</div>
-                      <div className="text-xs text-muted-foreground">Create or join families</div>
+                      <div className="font-medium text-base">{t('dashboard.manageFamilies')}</div>
+                      <div className="text-xs text-muted-foreground">{t('dashboard.manageFamiliesDescription')}</div>
                     </div>
                   </div>
                 </DropdownMenuItem>
@@ -711,7 +715,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="px-6 mb-4">
             <Alert className="bg-orange-100 border-orange-200 text-orange-800">
               <AlertDescription className="text-center text-sm">
-                ⚠️ You're offline. Some features may be limited.
+                ⚠️ {t('dashboard.offlineMessage')}
               </AlertDescription>
             </Alert>
           </div>

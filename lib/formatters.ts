@@ -1,5 +1,5 @@
 // Central formatting utilities for Family OS
-// European locale (it-IT) with EUR as default currency
+// Locale-aware formatting based on user language
 
 export interface FormatterConfig {
   locale: string
@@ -11,32 +11,95 @@ export interface FormatterConfig {
   startOfWeek: 0 | 1 | 2 | 3 | 4 | 5 | 6 // 0 = Sunday, 1 = Monday
 }
 
-// Default European configuration
+// Default configuration - will be overridden by user preferences
 const DEFAULT_CONFIG: FormatterConfig = {
-  locale: 'it-IT', // Italian locale for European formatting
-  timezone: 'Europe/Rome',
-  currency: 'EUR',
+  locale: 'en-US',
+  timezone: 'America/New_York',
+  currency: 'USD',
   dateStyle: 'medium',
   timeStyle: 'short',
-  use24Hour: true,
-  startOfWeek: 1 // Monday
+  use24Hour: false,
+  startOfWeek: 0 // Sunday
 }
 
 // Global configuration - can be overridden by user preferences
 let currentConfig: FormatterConfig = { ...DEFAULT_CONFIG }
 
+// Get current language from i18n if available
+const getCurrentLanguage = (): string => {
+  if (typeof window !== 'undefined') {
+    // Try to get from i18n first
+    try {
+      const i18nInstance = (window as any).i18n
+      if (i18nInstance?.language) {
+        return i18nInstance.language
+      }
+    } catch {}
+    
+    // Fallback to localStorage
+    const savedLanguage = localStorage.getItem('familyos-language')
+    if (savedLanguage) return savedLanguage
+    
+    // Fallback to browser language
+    return navigator.language || 'en-US'
+  }
+  return 'en-US'
+}
+
+// Update locale mapping based on language
+const getLocaleFromLanguage = (language: string): FormatterConfig => {
+  const baseConfig = { ...DEFAULT_CONFIG }
+  
+  switch (language) {
+    case 'it':
+    case 'it-IT':
+      return {
+        ...baseConfig,
+        locale: 'it-IT',
+        timezone: 'Europe/Rome',
+        currency: 'EUR',
+        use24Hour: true,
+        startOfWeek: 1 // Monday
+      }
+    case 'en':
+    case 'en-US':
+    default:
+      return {
+        ...baseConfig,
+        locale: 'en-US',
+        timezone: 'America/New_York',
+        currency: 'USD',
+        use24Hour: false,
+        startOfWeek: 0 // Sunday
+      }
+  }
+}
+
 export const setFormatterConfig = (config: Partial<FormatterConfig>) => {
   currentConfig = { ...currentConfig, ...config }
 }
 
-export const getFormatterConfig = (): FormatterConfig => currentConfig
+export const getFormatterConfig = (): FormatterConfig => {
+  // Auto-update based on current language
+  const currentLanguage = getCurrentLanguage()
+  const languageConfig = getLocaleFromLanguage(currentLanguage)
+  return { ...languageConfig, ...currentConfig }
+}
+
+// Get effective config (with language detection)
+const getEffectiveConfig = (): FormatterConfig => {
+  const currentLanguage = getCurrentLanguage()
+  const languageConfig = getLocaleFromLanguage(currentLanguage)
+  return { ...languageConfig, ...currentConfig }
+}
 
 // Date formatting functions
 export const formatDate = (date: Date | string, options?: Intl.DateTimeFormatOptions): string => {
   try {
+    const config = getEffectiveConfig()
     const dateObj = typeof date === 'string' ? new Date(date) : date
-    return dateObj.toLocaleDateString(currentConfig.locale, {
-      timeZone: currentConfig.timezone,
+    return dateObj.toLocaleDateString(config.locale, {
+      timeZone: config.timezone,
       ...options
     })
   } catch {
@@ -71,10 +134,11 @@ export const formatDateCompact = (date: Date | string): string => {
 // Time formatting functions
 export const formatTime = (date: Date | string, options?: Intl.DateTimeFormatOptions): string => {
   try {
+    const config = getEffectiveConfig()
     const dateObj = typeof date === 'string' ? new Date(date) : date
-    return dateObj.toLocaleTimeString(currentConfig.locale, {
-      timeZone: currentConfig.timezone,
-      hour12: !currentConfig.use24Hour,
+    return dateObj.toLocaleTimeString(config.locale, {
+      timeZone: config.timezone,
+      hour12: !config.use24Hour,
       ...options
     })
   } catch {
@@ -91,10 +155,11 @@ export const formatTimeShort = (date: Date | string): string => {
 
 export const formatDateTime = (date: Date | string): string => {
   try {
+    const config = getEffectiveConfig()
     const dateObj = typeof date === 'string' ? new Date(date) : date
-    return dateObj.toLocaleString(currentConfig.locale, {
-      timeZone: currentConfig.timezone,
-      hour12: !currentConfig.use24Hour
+    return dateObj.toLocaleString(config.locale, {
+      timeZone: config.timezone,
+      hour12: !config.use24Hour
     })
   } catch {
     return 'Invalid date/time'
@@ -103,13 +168,14 @@ export const formatDateTime = (date: Date | string): string => {
 
 // Currency formatting functions
 export const formatCurrency = (amount: number, currency?: string): string => {
+  const config = getEffectiveConfig()
   try {
-    return new Intl.NumberFormat(currentConfig.locale, {
+    return new Intl.NumberFormat(config.locale, {
       style: 'currency',
-      currency: currency || currentConfig.currency
+      currency: currency || config.currency
     }).format(amount)
   } catch {
-    return `${currency || currentConfig.currency} ${amount.toFixed(2)}`
+    return `${currency || config.currency} ${amount.toFixed(2)}`
   }
 }
 
@@ -129,14 +195,14 @@ export const formatTimeForInput = (date: Date): string => {
 }
 
 // Calendar specific utilities
-export const getCalendarLocale = (): string => currentConfig.locale
-export const getCalendarStartOfWeek = (): number => currentConfig.startOfWeek
+export const getCalendarLocale = (): string => getEffectiveConfig().locale
+export const getCalendarStartOfWeek = (): number => getEffectiveConfig().startOfWeek
 
 // Default currency for new subscriptions/events
-export const getDefaultCurrency = (): string => currentConfig.currency
+export const getDefaultCurrency = (): string => getEffectiveConfig().currency
 
 // Timezone utilities
-export const getCurrentTimezone = (): string => currentConfig.timezone
+export const getCurrentTimezone = (): string => getEffectiveConfig().timezone
 
 // Date comparison utilities (timezone-aware)
 export const isUpcoming = (dateString: string): boolean => {

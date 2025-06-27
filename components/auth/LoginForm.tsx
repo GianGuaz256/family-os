@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase, getAuthRedirectUrl } from '../../lib/supabase'
 import { ThemeSwitcher } from '../ui/ThemeSwitcher'
+import { LanguageSelector } from '../ui/LanguageSelector'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -12,6 +14,7 @@ interface LoginFormProps {
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -37,7 +40,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
       if (error) throw error
       
       if (isSignUp && !data.user?.email_confirmed_at) {
-        setError('Please check your email to confirm your account before signing in.')
+        setError(t('auth.emailConfirmationRequired'))
       } else if (data.user) {
         onSuccess()
       }
@@ -50,8 +53,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-      {/* Theme switcher in top-right corner */}
-      <div className="absolute top-6 right-6 z-10">
+      {/* Theme switcher and language selector in top-right corner */}
+      <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
+        <LanguageSelector variant="compact" />
         <ThemeSwitcher size="sm" showLabel />
       </div>
       
@@ -64,10 +68,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                 <span className="text-3xl">👨‍👩‍👧‍👦</span>
               </div>
               <CardTitle className="text-3xl font-bold mb-2">
-                Family OS
+                {t('app.name')}
               </CardTitle>
               <CardDescription className="text-base">
-                Your family's digital home
+                {t('app.tagline')}
               </CardDescription>
             </div>
           </CardHeader>
@@ -75,32 +79,32 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                <Label htmlFor="email" className="text-sm font-medium">{t('auth.email')}</Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="Enter your email"
+                  placeholder={t('auth.emailPlaceholder')}
                   className="h-12 text-base"
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+                <Label htmlFor="password" className="text-sm font-medium">{t('auth.password')}</Label>
                 <Input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="Enter your password"
+                  placeholder={t('auth.passwordPlaceholder')}
                   className="h-12 text-base"
                 />
                 {isSignUp && (
                   <p className="text-sm text-muted-foreground">
-                    Password should be at least 6 characters
+                    {t('auth.passwordRequirement')}
                   </p>
                 )}
               </div>
@@ -118,7 +122,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                   disabled={isLoading}
                   size="lg"
                 >
-                  {isLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+                  {isLoading ? t('common.loading') : (isSignUp ? t('auth.signUp') : t('auth.signIn'))}
                 </Button>
                 
                 <Button
@@ -132,8 +136,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                   size="lg"
                 >
                   {isSignUp 
-                    ? 'Already have an account? Sign In' 
-                    : "Don't have an account? Sign Up"
+                    ? t('auth.alreadyHaveAccount') 
+                    : t('auth.dontHaveAccount')
                   }
                 </Button>
               </div>

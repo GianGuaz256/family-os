@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../ui/button'
@@ -97,6 +98,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
   currentUser,
   appConfig
 }) => {
+  const { t } = useTranslation()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null)
@@ -545,7 +547,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
       {/* Header */}
       {!appConfig && (
         <div className="flex justify-between items-center gap-4">
-          <h2 className="text-xl sm:text-2xl font-bold truncate">Subscriptions</h2>
+          <h2 className="text-xl sm:text-2xl font-bold truncate">{t('apps.subscriptions.name')}</h2>
           <div className="inline-flex rounded-lg border bg-muted p-1 shrink-0">
             <button
               onClick={() => setViewMode('cards')}
@@ -577,7 +579,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Active</p>
+                <p className="text-sm font-medium text-muted-foreground">{t('subscriptions.active')}</p>
                 <p className="text-2xl font-bold">
                   {activeSubscriptions.length}
                   {inactiveSubscriptions.length > 0 && (
@@ -598,7 +600,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Monthly</p>
+                <p className="text-sm font-medium text-muted-foreground">{t('subscriptions.monthly')}</p>
                 <p className="text-2xl font-bold">{formatCurrency(calculateMonthlyTotal(), 'USD')}</p>
               </div>
               <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -612,7 +614,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Yearly</p>
+                <p className="text-sm font-medium text-muted-foreground">{t('subscriptions.yearly')}</p>
                 <p className="text-2xl font-bold">{formatCurrency(calculateYearlyTotal(), 'USD')}</p>
               </div>
               <div className="h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center">
@@ -626,7 +628,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Due Soon</p>
+                <p className="text-sm font-medium text-muted-foreground">{t('subscriptions.dueSoon')}</p>
                 <p className="text-2xl font-bold">{upcomingPayments.length}</p>
               </div>
               <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
@@ -645,7 +647,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
               <AlertCircle className="h-5 w-5 text-white" />
             </div>
             <AlertDescription className="font-semibold text-orange-800 text-base">
-              You have {upcomingPayments.length} payment(s) due in the next 7 days
+{t('subscriptions.upcomingPaymentsAlert', { count: upcomingPayments.length })}
             </AlertDescription>
           </div>
         </Alert>
@@ -657,7 +659,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
           {/* All Subscriptions */}
           {subscriptions.length > 0 && (
             <div>
-              <h3 className="text-lg font-semibold mb-4">Subscriptions</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('apps.subscriptions.name')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {subscriptions.map((subscription) => {
                   const CategoryIcon = getCategoryIcon(subscription.category)
@@ -681,7 +683,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
                             <div>
                               <h4 className={`font-semibold ${!subscription.is_active ? 'text-muted-foreground' : ''}`}>
                                 {subscription.title}
-                                {!subscription.is_active && <span className="ml-2 text-xs text-red-500">(Inactive)</span>}
+                                {!subscription.is_active && <span className="ml-2 text-xs text-red-500">({t('subscriptions.inactive')})</span>}
                               </h4>
                               {subscription.provider && (
                                 <p className="text-sm text-muted-foreground">{subscription.provider}</p>
@@ -795,11 +797,11 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
             <Card className="text-center py-12">
               <CardContent>
                 <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No subscriptions yet</h3>
-                <p className="text-muted-foreground mb-4">Start tracking your family subscriptions to get cost insights</p>
+                <h3 className="text-lg font-semibold mb-2">{t('subscriptions.noSubscriptions')}</h3>
+                <p className="text-muted-foreground mb-4">{t('subscriptions.noSubscriptionsDescription')}</p>
                 <Button onClick={() => setShowCreateModal(true)} disabled={!isOnline}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add First Subscription
+                  {t('subscriptions.addFirst')}
                 </Button>
               </CardContent>
             </Card>
@@ -861,9 +863,9 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
       }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingSubscription ? 'Edit Subscription' : 'Add New Subscription'}</DialogTitle>
+            <DialogTitle>{editingSubscription ? t('subscriptions.editSubscription') : t('subscriptions.addSubscription')}</DialogTitle>
             <DialogDescription>
-              {editingSubscription ? 'Update subscription details' : 'Add a new recurring subscription to track family expenses'}
+              {editingSubscription ? t('subscriptions.editDescription') : t('subscriptions.addDescription')}
             </DialogDescription>
           </DialogHeader>
           

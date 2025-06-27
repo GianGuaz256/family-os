@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -8,6 +9,7 @@ import { Card, CardHeader, CardContent, CardTitle } from '../ui/card'
 import { Alert, AlertDescription } from '../ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
 import { IconSelector } from '../ui/IconSelector'
+import { LanguageSelector } from '../ui/LanguageSelector'
 import { 
   User as UserIcon, 
   Mail, 
@@ -31,6 +33,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   user,
   isOnline
 }) => {
+  const { t } = useTranslation()
   const [displayName, setDisplayName] = useState('')
   const [profileImage, setProfileImage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -125,7 +128,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   return (
     <div className="space-y-6 pb-20">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Settings</h2>
+        <h2 className="text-2xl font-bold">{t('settings.title')}</h2>
       </div>
 
       {/* Profile Section */}
@@ -133,13 +136,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UserIcon className="h-5 w-5" />
-            Profile Information
+            {t('settings.profile')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Profile Image Section */}
           <div className="space-y-2">
-            <Label>Profile Picture</Label>
+            <Label>{t('settings.profilePicture')}</Label>
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16">
                 {profileImage ? (
@@ -159,7 +162,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   className="flex items-center gap-2"
                 >
                   <Edit3 className="h-4 w-4" />
-                  {isUpdatingImage ? 'Updating...' : 'Change Picture'}
+                  {isUpdatingImage ? t('common.updating') : t('settings.changePicture')}
                 </Button>
                 {profileImage && (
                   <Button
@@ -169,7 +172,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     disabled={!isOnline || isUpdatingImage}
                     className="text-muted-foreground"
                   >
-                    Remove Picture
+                    {t('settings.removePicture')}
                   </Button>
                 )}
               </div>
@@ -177,7 +180,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
+            <Label htmlFor="email">{t('settings.emailAddress')}</Label>
             <Input
               id="email"
               value={user.email || ''}
@@ -185,12 +188,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               className="bg-muted"
             />
             <p className="text-sm text-muted-foreground">
-              Your email cannot be changed from here
+              {t('settings.emailCannotChange')}
             </p>
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="display-name">Display Name</Label>
+            <Label htmlFor="display-name">{t('settings.displayName')}</Label>
             <Input
               id="display-name"
               value={displayName}
@@ -209,12 +212,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               {isSaved ? (
                 <>
                   <Check className="h-4 w-4" />
-                  Saved
+                  {t('common.saved')}
                 </>
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  {isLoading ? 'Saving...' : 'Save Changes'}
+                  {isLoading ? t('common.saving') : t('common.save')}
                 </>
               )}
             </Button>
@@ -254,12 +257,25 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         </CardContent>
       </Card>
 
-      {/* Preferences - Coming Soon */}
+      {/* Language Preferences */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            {t('settings.language')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <LanguageSelector user={user} />
+        </CardContent>
+      </Card>
+
+      {/* Other Preferences - Coming Soon */}
       <Card className="opacity-60">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Palette className="h-5 w-5" />
-            Preferences
+            {t('settings.theme')}
             <span className="text-xs bg-muted px-2 py-1 rounded-full">Coming Soon</span>
           </CardTitle>
         </CardHeader>
@@ -267,11 +283,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <div className="space-y-3 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
-              <span>Notification Settings</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Globe className="h-4 w-4" />
-              <span>Language & Region</span>
+              <span>{t('settings.notifications')}</span>
             </div>
             <div className="flex items-center gap-2">
               <Smartphone className="h-4 w-4" />
@@ -285,7 +297,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       {!isOnline && (
         <Alert>
           <AlertDescription>
-            Some settings may not be available while offline.
+            {t('errors.networkError')}
           </AlertDescription>
         </Alert>
       )}
