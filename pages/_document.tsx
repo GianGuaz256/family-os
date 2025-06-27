@@ -6,7 +6,8 @@ export default function Document() {
       <Head>
         {/* PWA Meta Tags */}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-        <meta name="background-color" content="#ffffff" />
+        <meta name="background-color" content="#f5f8fb" />
+        <meta name="theme-color" content="#f5f8fb" />
         <meta name="format-detection" content="telephone=no" />
         
         {/* Generated Favicons - Professional Setup */}
@@ -30,7 +31,8 @@ export default function Document() {
         <link rel="apple-touch-icon" sizes="1024x1024" href="/icons/apple-touch-icon-1024x1024.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="FamilyOS" />
-        <meta name="msapplication-TileColor" content="#ffffff" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="msapplication-TileColor" content="#f5f8fb" />
         <meta name="msapplication-TileImage" content="/icons/mstile-144x144.png" />
         <meta name="msapplication-config" content="/icons/browserconfig.xml" />
         

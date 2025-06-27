@@ -21,7 +21,8 @@ import {
   Moon,
   Camera,
   Upload,
-  Palette
+  Palette,
+  User
 } from 'lucide-react'
 
 interface IconSelectorProps {
@@ -29,6 +30,9 @@ interface IconSelectorProps {
   onIconSelect: (icon: string) => void
   open: boolean
   onOpenChange: (open: boolean) => void
+  title?: string
+  description?: string
+  type?: 'family' | 'profile'
 }
 
 const EMOJI_ICONS = [
@@ -42,6 +46,17 @@ const EMOJI_ICONS = [
   '🍎', '🍊', '🍋', '🍌', '🍓', '🍇'
 ]
 
+const PROFILE_EMOJI_ICONS = [
+  '😀', '😃', '😄', '😁', '😊', '😇',
+  '🙂', '🤗', '🤔', '😎', '🤓', '🧐',
+  '👦', '👧', '👨', '👩', '👴', '👵',
+  '👶', '🧒', '👱', '👸', '🤴', '👮',
+  '🎨', '🎭', '🎪', '🎵', '🎸', '🎹',
+  '🌟', '⭐', '💫', '✨', '🔥', '💎',
+  '🐶', '🐱', '🐰', '🐻', '🐼', '🦊',
+  '🍀', '🌸', '🌺', '🌻', '🌷', '🌹'
+]
+
 const LUCIDE_ICONS = [
   { icon: Home, name: 'Home' },
   { icon: Heart, name: 'Heart' },
@@ -53,14 +68,35 @@ const LUCIDE_ICONS = [
   { icon: Moon, name: 'Moon' }
 ]
 
+const PROFILE_LUCIDE_ICONS = [
+  { icon: User, name: 'User' },
+  { icon: Star, name: 'Star' },
+  { icon: Heart, name: 'Heart' },
+  { icon: Crown, name: 'Crown' },
+  { icon: Sun, name: 'Sun' },
+  { icon: Moon, name: 'Moon' },
+  { icon: Flower, name: 'Flower' },
+  { icon: Camera, name: 'Camera' }
+]
+
 export const IconSelector: React.FC<IconSelectorProps> = ({
   currentIcon = '🏠',
   onIconSelect,
   open,
-  onOpenChange
+  onOpenChange,
+  title,
+  description,
+  type = 'family'
 }) => {
   const [imageUrl, setImageUrl] = useState('')
   const [isUploading, setIsUploading] = useState(false)
+
+  const emojiIcons = type === 'profile' ? PROFILE_EMOJI_ICONS : EMOJI_ICONS
+  const lucideIcons = type === 'profile' ? PROFILE_LUCIDE_ICONS : LUCIDE_ICONS
+  const defaultTitle = type === 'profile' ? 'Choose Profile Picture' : 'Choose Family Icon'
+  const defaultDescription = type === 'profile' 
+    ? 'Select an emoji, icon, or upload your own image for your profile.'
+    : 'Select an emoji, icon, or upload your own image to represent your family.'
 
   const handleEmojiSelect = (emoji: string) => {
     onIconSelect(emoji)
@@ -93,7 +129,9 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       // For demo, we'll use a placeholder URL
-      const demoUrl = `https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=100&h=100&fit=crop&crop=center`
+      const demoUrl = type === 'profile' 
+        ? `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=center`
+        : `https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=100&h=100&fit=crop&crop=center`
       onIconSelect(demoUrl)
       onOpenChange(false)
     } catch (error) {
@@ -106,10 +144,11 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
   const renderCurrentIcon = (icon: string) => {
     if (icon.startsWith('lucide:')) {
       const iconName = icon.replace('lucide:', '')
-      const LucideIcon = LUCIDE_ICONS.find(i => i.name === iconName)?.icon || Home
+      const iconList = type === 'profile' ? PROFILE_LUCIDE_ICONS : LUCIDE_ICONS
+      const LucideIcon = iconList.find(i => i.name === iconName)?.icon || (type === 'profile' ? User : Home)
       return <LucideIcon className="h-6 w-6" />
     } else if (icon.startsWith('http')) {
-      return <img src={icon} alt="Family icon" className="h-6 w-6 rounded object-cover" />
+      return <img src={icon} alt={`${type} icon`} className="h-6 w-6 rounded object-cover" />
     } else {
       return <span className="text-2xl">{icon}</span>
     }
@@ -120,11 +159,11 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
       <DialogContent className="w-[95vw] max-w-[500px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Palette className="h-5 w-5" />
-            Choose Family Icon
+            {type === 'profile' ? <User className="h-5 w-5" /> : <Palette className="h-5 w-5" />}
+            {title || defaultTitle}
           </DialogTitle>
           <DialogDescription>
-            Select an emoji, icon, or upload your own image to represent your family.
+            {description || defaultDescription}
           </DialogDescription>
         </DialogHeader>
 
@@ -137,7 +176,7 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
 
           <TabsContent value="emoji" className="space-y-4">
             <div className="grid grid-cols-6 sm:grid-cols-8 gap-2 sm:gap-3 max-h-64 overflow-y-auto p-2">
-              {EMOJI_ICONS.map((emoji) => (
+              {emojiIcons.map((emoji) => (
                 <Button
                   key={emoji}
                   variant={currentIcon === emoji ? "default" : "outline"}
@@ -152,7 +191,7 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
 
           <TabsContent value="icons" className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-              {LUCIDE_ICONS.map(({ icon: Icon, name }) => (
+              {lucideIcons.map(({ icon: Icon, name }) => (
                 <Button
                   key={name}
                   variant={currentIcon === `lucide:${name}` ? "default" : "outline"}
@@ -198,8 +237,10 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       disabled={isUploading}
                     />
-                    <Button disabled={isUploading}>
-                      <Camera className="h-4 w-4 mr-2" />
+                    <Button 
+                      disabled={isUploading}
+                      className="pointer-events-none"
+                    >
                       {isUploading ? 'Uploading...' : 'Choose File'}
                     </Button>
                   </div>
@@ -209,16 +250,14 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
           </TabsContent>
         </Tabs>
 
-        <div className="flex items-center justify-between pt-4 border-t">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Current:</span>
-            <div className="flex items-center justify-center w-8 h-8 border rounded">
+        {/* Current Selection Preview */}
+        <div className="border-t pt-4">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">Current Selection:</span>
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-600 rounded-lg flex items-center justify-center">
               {renderCurrentIcon(currentIcon)}
             </div>
           </div>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
         </div>
       </DialogContent>
     </Dialog>

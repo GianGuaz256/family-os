@@ -13,29 +13,21 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 // PWA: Dynamic theme colors for safe area
 const updatePWAThemeColor = (theme: Theme) => {
-  // Get the computed background color from CSS variables for exact matching
-  const getBackgroundColor = (): string => {
-    // Create a temporary element to compute the actual background color
-    const tempEl = document.createElement('div')
-    tempEl.style.backgroundColor = 'hsl(var(--background))'
-    document.body.appendChild(tempEl)
-    const computedColor = getComputedStyle(tempEl).backgroundColor
-    document.body.removeChild(tempEl)
-    
-    // Convert RGB to hex for meta tag
-    const rgbMatch = computedColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/)
-    if (rgbMatch) {
-      const r = parseInt(rgbMatch[1])
-      const g = parseInt(rgbMatch[2]) 
-      const b = parseInt(rgbMatch[3])
-      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+  // Use the actual gradient background colors used throughout the app
+  // These match the bg-gradient-to-br from-slate-50 to-slate-100 (light) 
+  // and from-slate-900 to-slate-800 (dark) used in the app
+  const getAppBackgroundColor = (): string => {
+    // Average of the gradient colors used in the app backgrounds
+    if (theme === 'dark') {
+      // Dark mode: average of slate-900 (#0f172a) and slate-800 (#1e293b)
+      return '#172033'
+    } else {
+      // Light mode: average of slate-50 (#f8fafc) and slate-100 (#f1f5f9) 
+      return '#f5f8fb'
     }
-    
-    // Fallback to known values if computation fails
-    return theme === 'dark' ? '#141414' : '#ffffff'
   }
   
-  const themeColor = getBackgroundColor()
+  const themeColor = getAppBackgroundColor()
   
   // Update theme-color meta tag
   let themeColorMeta = document.querySelector('meta[name="theme-color"]')

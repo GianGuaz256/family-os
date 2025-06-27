@@ -6,6 +6,8 @@ import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Card, CardHeader, CardContent, CardTitle } from '../ui/card'
 import { Alert, AlertDescription } from '../ui/alert'
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
+import { IconSelector } from '../ui/IconSelector'
 import { 
   User as UserIcon, 
   Mail, 
@@ -15,7 +17,9 @@ import {
   Globe,
   Smartphone,
   Save,
-  Check
+  Check,
+  Edit3,
+  Camera
 } from 'lucide-react'
 
 interface SettingsTabProps {
@@ -28,13 +32,19 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   isOnline
 }) => {
   const [displayName, setDisplayName] = useState('')
+  const [profileImage, setProfileImage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
+  const [showImageSelector, setShowImageSelector] = useState(false)
+  const [isUpdatingImage, setIsUpdatingImage] = useState(false)
 
   useEffect(() => {
-    // Initialize display name from user metadata
+    // Initialize display name and profile image from user metadata
     if (user?.user_metadata?.display_name) {
       setDisplayName(user.user_metadata.display_name)
+    }
+    if (user?.user_metadata?.profile_image) {
+      setProfileImage(user.user_metadata.profile_image)
     }
   }, [user])
 
@@ -44,7 +54,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     setIsLoading(true)
     try {
       const { error } = await supabase.auth.updateUser({
-        data: { display_name: displayName }
+        data: { 
+          display_name: displayName,
+          profile_image: profileImage
+        }
       })
 
       if (error) throw error
@@ -55,6 +68,57 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       console.error('Error updating profile:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const updateProfileImage = async (newImage: string) => {
+    if (!isOnline) return
+    
+    setIsUpdatingImage(true)
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: { 
+          profile_image: newImage
+        }
+      })
+
+      if (error) throw error
+      
+      setProfileImage(newImage)
+      setShowImageSelector(false)
+    } catch (error) {
+      console.error('Error updating profile image:', error)
+    } finally {
+      setIsUpdatingImage(false)
+    }
+  }
+
+  const renderProfileImage = (image?: string) => {
+    if (!image) return null
+    
+    if (image.startsWith('lucide:')) {
+      const iconName = image.replace('lucide:', '')
+      const iconMap: { [key: string]: any } = {
+        'User': UserIcon,
+        'Star': UserIcon,
+        'Heart': UserIcon,
+        'Crown': UserIcon,
+        'Sun': UserIcon,
+        'Moon': UserIcon,
+        'Flower': UserIcon,
+        'Camera': Camera
+      }
+      const LucideIcon = iconMap[iconName] || UserIcon
+      return <LucideIcon className="h-10 w-10 text-primary-foreground" />
+    } else if (image.startsWith('http')) {
+      return <AvatarImage src={image} alt="Profile picture" className="object-cover" />
+    } else {
+      // Emoji - make it bigger and centered for the large avatar
+      return (
+        <div className="flex items-center justify-center w-full h-full">
+          <span className="text-3xl leading-none">{image}</span>
+        </div>
+      )
     }
   }
 
@@ -73,6 +137,45 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Profile Image Section */}
+          <div className="space-y-2">
+            <Label>Profile Picture</Label>
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16">
+                {profileImage ? (
+                  renderProfileImage(profileImage)
+                ) : (
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xl">
+                    {user.email?.[0].toUpperCase()}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowImageSelector(true)}
+                  disabled={!isOnline || isUpdatingImage}
+                  className="flex items-center gap-2"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  {isUpdatingImage ? 'Updating...' : 'Change Picture'}
+                </Button>
+                {profileImage && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => updateProfileImage('')}
+                    disabled={!isOnline || isUpdatingImage}
+                    className="text-muted-foreground"
+                  >
+                    Remove Picture
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="email">Email Address</Label>
             <Input
@@ -186,6 +289,15 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </AlertDescription>
         </Alert>
       )}
+
+      {/* Profile Image Selector */}
+      <IconSelector
+        currentIcon={profileImage || '😀'}
+        onIconSelect={updateProfileImage}
+        open={showImageSelector}
+        onOpenChange={setShowImageSelector}
+        type="profile"
+      />
     </div>
   )
 } 

@@ -26,7 +26,7 @@
 # TODO PER VERSIONE 1.0.0
 
 - [x] Salvare documenta su DB
-- [x] Pull to refresh
+- [x] Pull to refresh (FIXED - now only on main dashboard with proper fixed layout)
 - [x] Rendere visibile gli eventi con fine nel calendario
 - [x] Mini ricerca su dynamic safe area
 - [x] Aggiungere notes (?)
@@ -38,7 +38,7 @@
 - [] Nelle settings della family gestire i member roles e permissions
 - [] Cosa mettere al posto dell’orario
 - [] Fixare la logica di visualizzazione dei nomi
-- [] Aggiungere immagine profilo 
+- [x] Aggiungere immagine profilo (COMPLETED - Profile image functionality added to settings) 
 - [] Mostrare icona di fianco alla creazione di un documento, evento o task
 - [] Mettere la priorità sulla task
 - [] Gestire chi crea la task e di chi la completa

@@ -4,6 +4,7 @@ import { useTheme } from '../contexts/ThemeContext'
 /**
  * Hook to manage PWA theme colors and ensure proper safe area handling
  * This hook automatically updates PWA theme colors when the theme changes
+ * Uses the actual gradient background colors from the app design
  */
 export const usePWATheme = () => {
   const { theme } = useTheme()
@@ -14,16 +15,18 @@ export const usePWATheme = () => {
     const statusBarMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
     
     if (themeColorMeta && statusBarMeta) {
-      // Get actual computed background color for comparison
-      const tempEl = document.createElement('div')
-      tempEl.style.backgroundColor = 'hsl(var(--background))'
-      document.body.appendChild(tempEl)
-      const computedBgColor = getComputedStyle(tempEl).backgroundColor
-      document.body.removeChild(tempEl)
-      
+      // Get expected colors based on the app's gradient backgrounds
+      const expectedThemeColor = theme === 'dark' ? '#172033' : '#f5f8fb'
       const expectedStatusBar = theme === 'dark' ? 'black-translucent' : 'default'
       
-
+      // Update if different
+      if (themeColorMeta.getAttribute('content') !== expectedThemeColor) {
+        themeColorMeta.setAttribute('content', expectedThemeColor)
+      }
+      
+      if (statusBarMeta.getAttribute('content') !== expectedStatusBar) {
+        statusBarMeta.setAttribute('content', expectedStatusBar)
+      }
     }
   }, [theme])
 

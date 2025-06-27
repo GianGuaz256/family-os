@@ -1,7 +1,7 @@
 import React from 'react'
 import { User } from '@supabase/supabase-js'
 import { Button } from './button'
-import { Avatar, AvatarFallback } from './avatar'
+import { Avatar, AvatarFallback, AvatarImage } from './avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './dropdown-menu'
-import { ArrowLeft, LogOut, Settings, Users, Home, LucideIcon } from 'lucide-react'
+import { ArrowLeft, LogOut, Settings, Users, Home, LucideIcon, User as UserIcon, Camera } from 'lucide-react'
 
 interface AppHeaderProps {
   user?: User | null
@@ -25,6 +25,43 @@ interface AppHeaderProps {
   appColor?: string
   appDescription?: string
   viewSwitcher?: React.ReactNode
+}
+
+const renderUserAvatar = (user: User) => {
+  const profileImage = user.user_metadata?.profile_image
+  
+  if (profileImage) {
+    if (profileImage.startsWith('lucide:')) {
+      const iconName = profileImage.replace('lucide:', '')
+      const iconMap: { [key: string]: any } = {
+        'User': UserIcon,
+        'Star': UserIcon,
+        'Heart': UserIcon,
+        'Crown': UserIcon,
+        'Sun': UserIcon,
+        'Moon': UserIcon,
+        'Flower': UserIcon,
+        'Camera': Camera
+      }
+      const LucideIcon = iconMap[iconName] || UserIcon
+      return <LucideIcon className="h-5 w-5 text-primary-foreground" />
+    } else if (profileImage.startsWith('http')) {
+      return <AvatarImage src={profileImage} alt="Profile picture" className="object-cover" />
+    } else {
+      // Emoji - make it bigger and centered
+      return (
+        <div className="flex items-center justify-center w-full h-full">
+          <span className="text-lg leading-none">{profileImage}</span>
+        </div>
+      )
+    }
+  }
+  
+  return (
+    <AvatarFallback className="bg-primary text-primary-foreground">
+      {user.email?.[0].toUpperCase()}
+    </AvatarFallback>
+  )
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -86,9 +123,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      {user.email?.[0].toUpperCase()}
-                    </AvatarFallback>
+                    {renderUserAvatar(user)}
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
