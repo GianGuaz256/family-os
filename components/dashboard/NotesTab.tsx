@@ -491,7 +491,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({
               </DialogHeader>
               
               <div className="bg-muted/30 rounded-lg p-4 border overflow-hidden">
-                <div className="prose prose-sm max-w-none dark:prose-invert bg-background rounded-md p-4 shadow-sm" data-color-mode="auto">
+                <div className="prose prose-sm max-w-none dark:prose-invert bg-background rounded-md p-4 shadow-sm text-sm" data-color-mode="auto">
                   <MDEditor.Markdown source={selectedNote.content} />
                 </div>
               </div>

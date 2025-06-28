@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { User } from '@supabase/supabase-js'
 import { ThemeProvider } from '../contexts/ThemeContext'
+import '../lib/i18n' // Initialize i18n
 import '../styles/globals.css'
 
 // PWA: Install prompt interface

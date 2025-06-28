@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -114,6 +115,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   isOnline,
   appConfig
 }) => {
+  const { t } = useTranslation()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showEventInfoModal, setShowEventInfoModal] = useState(false)
@@ -1670,7 +1672,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                     {formatDateShort(selectedDate)}
                   </span>
                 ) : (
-                  'Select a date'
+                  t('apps.events.selectDate')
                 )}
               </h3>
               {selectedDate && (
@@ -1759,7 +1761,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
       
       {!appConfig && (
         <div className="flex justify-between items-center gap-4">
-          <h2 className="text-xl sm:text-2xl font-bold truncate">Events</h2>
+          <h2 className="text-xl sm:text-2xl font-bold truncate">{t('apps.events.name')}</h2>
           <div className="inline-flex rounded-lg border bg-muted p-1 shrink-0">
             <button
               onClick={() => setViewMode('list')}
@@ -1797,7 +1799,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
             <span className={`mr-2 transition-colors duration-200 ${
               eventFilter === 'all' ? 'text-primary font-semibold' : ''
             }`}>
-              All
+              {t('common.all')}
             </span>
             <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
               eventFilter === 'all'
@@ -1817,7 +1819,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
             <span className={`mr-2 transition-colors duration-200 ${
               eventFilter === 'events' ? 'text-blue-500 font-semibold' : ''
             }`}>
-              Events
+              {t('apps.events.name')}
             </span>
             <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
               eventFilter === 'events'
@@ -1837,7 +1839,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
             <span className={`mr-2 transition-colors duration-200 ${
               eventFilter === 'subscriptions' ? 'text-emerald-500 font-semibold' : ''
             }`}>
-              Subscriptions
+              {t('apps.subscriptions.name')}
             </span>
             <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
               eventFilter === 'subscriptions'
@@ -1866,7 +1868,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
       >
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="sr-only">Event Information</DialogTitle>
+            <DialogTitle className="sr-only">{t('apps.events.eventInfo')}</DialogTitle>
           </DialogHeader>
           {selectedEvent && clickedEvent && (
             <>
@@ -1893,14 +1895,14 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                         <div className="flex items-center gap-3">
                           <CalendarIcon className="h-5 w-5 text-primary" />
                           <div>
-                            <span className="text-sm font-medium text-gray-700">Start Date</span>
+                            <span className="text-sm font-medium text-gray-700">{t('apps.events.startDate')}</span>
                             <p className="text-sm text-gray-900">{rangeDisplay.startDisplay}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
                           <CalendarDays className="h-5 w-5 text-primary" />
                           <div>
-                            <span className="text-sm font-medium text-gray-700">End Date</span>
+                            <span className="text-sm font-medium text-gray-700">{t('apps.events.endDate')}</span>
                             <p className="text-sm text-gray-900">{rangeDisplay.endDisplay}</p>
                           </div>
                         </div>
@@ -1915,7 +1917,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                       <div className="flex items-center gap-3">
                         <CalendarIcon className="h-5 w-5 text-primary" />
                         <div>
-                          <span className="text-sm font-medium text-gray-700">This Occurrence</span>
+                          <span className="text-sm font-medium text-gray-700">{t('apps.events.thisOccurrence')}</span>
                           <p className="text-sm text-gray-900">
                             {formatDateLong(clickedEvent.date)}
                             {getEventTimeDisplay(clickedEvent, new Date(clickedEvent.date + 'T00:00:00')) && ` at ${getEventTimeDisplay(clickedEvent, new Date(clickedEvent.date + 'T00:00:00'))}`}
@@ -1928,7 +1930,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                       <div className="flex items-center gap-3">
                         <Clock className="h-5 w-5 text-primary" />
                         <div>
-                          <span className="text-sm font-medium text-gray-700">Time</span>
+                          <span className="text-sm font-medium text-gray-700">{t('apps.events.time')}</span>
                           <p className="text-sm text-gray-900">{getEventTimeDisplay(selectedEvent, new Date(selectedEvent.date + 'T00:00:00'))}</p>
                         </div>
                       </div>
@@ -1938,13 +1940,13 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                     <div className="border-t pt-4 mt-4">
                       <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
                         <Repeat className="h-4 w-4 text-primary" />
-                        Recurring Event Series
+{t('apps.events.recurringEventSeries')}
                       </h3>
                       <div className="space-y-3">
                         <div className="flex items-center gap-3">
                           <CalendarIcon className="h-4 w-4 text-primary" />
                           <div>
-                            <span className="text-xs font-medium text-gray-600">Series starts</span>
+                            <span className="text-xs font-medium text-gray-600">{t('apps.events.seriesStarts')}</span>
                             <p className="text-sm text-gray-800">{formatDateLong(selectedEvent.date)}</p>
                           </div>
                         </div>

@@ -1,7 +1,7 @@
 import React from 'react'
 import { User } from '@supabase/supabase-js'
 import { Button } from './button'
-import { Avatar, AvatarFallback } from './avatar'
+import { Avatar, AvatarFallback, AvatarImage } from './avatar'
 import { ThemeSwitcher } from './ThemeSwitcher'
 import {
   DropdownMenu,
@@ -20,6 +20,7 @@ import {
   Plus,
   ArrowLeft
 } from 'lucide-react'
+import { renderUserAvatar } from '../../lib/avatar-utils'
 
 interface ContextualAction {
   icon: React.ComponentType<{ className?: string }>
@@ -40,6 +41,8 @@ interface BottomActionsProps {
   className?: string
   isHome?: boolean
 }
+
+
 
 export const BottomActions: React.FC<BottomActionsProps> = ({
   user,
@@ -81,21 +84,24 @@ export const BottomActions: React.FC<BottomActionsProps> = ({
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full w-10 h-10 bg-white/20 dark:bg-white/10 hover:bg-white/30 dark:hover:bg-white/20 border border-white/30 dark:border-white/20 backdrop-blur-sm">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {user.email?.[0].toUpperCase()}
-                  </AvatarFallback>
+                  {renderUserAvatar(user, { fallbackTextSize: 'xs' })}
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="mb-4 w-56 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/20 dark:border-white/10">
               <DropdownMenuLabel className="text-xs">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    {user.user_metadata?.display_name || 'User'}
-                  </p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    {user.email}
-                  </p>
+                <div className="flex items-center space-x-3 p-2">
+                  <Avatar className="h-10 w-10">
+                    {renderUserAvatar(user, { size: 'lg', fallbackTextSize: 'sm' })}
+                  </Avatar>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {user.user_metadata?.display_name || 'User'}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

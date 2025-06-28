@@ -1,7 +1,7 @@
 import React from 'react'
 import { User } from '@supabase/supabase-js'
 import { Button } from './button'
-import { Avatar, AvatarFallback } from './avatar'
+import { Avatar } from './avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from './dropdown-menu'
 import { ArrowLeft, LogOut, Settings, Users, Home, LucideIcon } from 'lucide-react'
+import { renderUserAvatar } from '../../lib/avatar-utils'
 
 interface AppHeaderProps {
   user?: User | null
@@ -26,6 +27,8 @@ interface AppHeaderProps {
   appDescription?: string
   viewSwitcher?: React.ReactNode
 }
+
+
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
   user,
@@ -86,9 +89,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      {user.email?.[0].toUpperCase()}
-                    </AvatarFallback>
+                    {renderUserAvatar(user)}
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>

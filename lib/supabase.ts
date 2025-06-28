@@ -1,20 +1,55 @@
 import { createClient } from '@supabase/supabase-js'
 
+// Debug flag for development - controlled by environment variable
+// To enable debug logging in development, set DEBUG_SUPABASE=true in your .env.local file
+const DEBUG_SUPABASE = process.env.NODE_ENV === 'development' && process.env.DEBUG_SUPABASE === 'true'
+
 // Get environment variables with fallbacks for build time
 const getSupabaseUrl = (): string => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  
+  // Debug logging - only in development with debug flag enabled
+  if (DEBUG_SUPABASE && typeof window !== 'undefined') {
+    console.log('🔍 DEBUG - Environment variable check:')
+    console.log('NEXT_PUBLIC_SUPABASE_URL exists:', !!url)
+    console.log('Is undefined:', !url)
+    console.log('Is placeholder:', url === 'your_supabase_project_url_here')
+  }
+  
   if (!url || url === 'your_supabase_project_url_here') {
+    if (DEBUG_SUPABASE) {
+      console.error('❌ Supabase URL not found or is placeholder')
+    }
     // Fallback for build time - use a valid placeholder URL
     return 'https://placeholder.supabase.co'
+  }
+  
+  if (DEBUG_SUPABASE) {
+    console.log('✅ Supabase URL configured successfully')
   }
   return url
 }
 
 const getSupabaseAnonKey = (): string => {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  
+  // Debug logging - only in development with debug flag enabled
+  if (DEBUG_SUPABASE && typeof window !== 'undefined') {
+    console.log('🔑 DEBUG - Anon key check:')
+    console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY exists:', !!key)
+    console.log('Key length:', key?.length || 0)
+  }
+  
   if (!key || key === 'your_supabase_anon_key_here') {
+    if (DEBUG_SUPABASE) {
+      console.error('❌ Supabase anon key not found or is placeholder')
+    }
     // Fallback for build time - use a valid placeholder key
     return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder'
+  }
+  
+  if (DEBUG_SUPABASE) {
+    console.log('✅ Supabase anon key configured successfully (length:', key.length, ')')
   }
   return key
 }
@@ -334,6 +369,35 @@ export type Database = {
           content?: string
           is_important?: boolean
           created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      user_preferences: {
+        Row: {
+          id: string
+          user_id: string
+          language: 'en' | 'it'
+          theme?: 'light' | 'dark' | 'system'
+          notifications_enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          language?: 'en' | 'it'
+          theme?: 'light' | 'dark' | 'system'
+          notifications_enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          language?: 'en' | 'it'
+          theme?: 'light' | 'dark' | 'system'
+          notifications_enabled?: boolean
           created_at?: string
           updated_at?: string
         }

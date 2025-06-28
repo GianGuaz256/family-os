@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -38,6 +39,7 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
   onGroupJoined,
   isOnline
 }) => {
+  const { t } = useTranslation()
   const [groups, setGroups] = useState<FamilyGroup[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -79,7 +81,7 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
       setGroups(familyGroups || [])
     } catch (error: any) {
       console.error('Error fetching groups:', error)
-      setError('Failed to load family groups')
+      setError(t('errors.loadFamilyGroups'))
     } finally {
       setIsLoading(false)
     }
@@ -118,7 +120,7 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
       await fetchUserGroups()
     } catch (error: any) {
       console.error('Error creating group:', error)
-      setError('Failed to create family group')
+      setError(t('errors.createFamilyGroup'))
     }
   }
 
@@ -150,7 +152,7 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
       await fetchUserGroups()
     } catch (error: any) {
       console.error('Error joining group:', error)
-      setError('Failed to join family group. Please check the invite code.')
+      setError(t('errors.joinFamilyGroup'))
     }
   }
 
@@ -225,8 +227,8 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
           <div className="flex items-center justify-center min-h-[30vh]">
             <div className="text-center space-y-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-              <h2 className="text-lg font-medium">Loading your families...</h2>
-              <p className="text-muted-foreground">Setting up your family space</p>
+              <h2 className="text-lg font-medium">{t('family.loadingFamilies')}</h2>
+              <p className="text-muted-foreground">{t('family.settingUpSpace')}</p>
             </div>
           </div>
         </div>
@@ -257,7 +259,7 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
               animationSpeed={4}
               className="text-lg sm:text-xl font-medium opacity-80"
             >
-              Connect • Organize • Share
+              {t('app.description')}
             </GradientText>
           </div>
 
@@ -280,7 +282,7 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
                   <div className="flex-1 min-w-0">
                     <h3 className="text-lg font-semibold truncate">{group.name}</h3>
                     <p className="text-xs text-muted-foreground">
-                      {group.owner_id === user.id ? 'Owner' : 'Member'}
+                      {group.owner_id === user.id ? t('family.owner') : t('family.member')}
                     </p>
                   </div>
                 </div>
@@ -293,7 +295,7 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
                     size="sm"
                     disabled={!isOnline}
                   >
-                    Enter Family
+                    {t('family.enterFamily')}
                   </Button>
                   {group.owner_id === user.id && (
                     <Button 
@@ -307,7 +309,7 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
                       disabled={!isOnline}
                     >
                       <Settings className="h-4 w-4 mr-2" />
-                      Manage Family
+                      {t('family.manageFamily')}
                     </Button>
                   )}
                 </div>
@@ -321,10 +323,10 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
                 <Users className="h-12 w-12 text-slate-500 dark:text-slate-400" />
               </div>
               <h3 className="text-2xl font-semibold mb-3">
-                No families yet
+                {t('family.noFamilies')}
               </h3>
               <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                Create your first family or join an existing one to get started with Family OS
+                {t('family.noFamiliesDescription')}
               </p>
             </div>
           )}
@@ -336,19 +338,19 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
         <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle className="text-xl">Create New Family</DialogTitle>
+              <DialogTitle className="text-xl">{t('family.createGroup')}</DialogTitle>
               <DialogDescription>
-                Give your family a name to get started. You'll be able to invite other members later.
+                {t('family.createGroupDescription')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-4">
               <div className="space-y-2">
-                <Label htmlFor="family-name" className="text-sm font-medium">Family Name</Label>
+                <Label htmlFor="family-name" className="text-sm font-medium">{t('family.groupName')}</Label>
                 <Input
                   id="family-name"
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
-                  placeholder="The Smith Family"
+                  placeholder={t('family.groupNamePlaceholder')}
                   className="text-base"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -359,14 +361,14 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
               </div>
               <div className="flex gap-3">
                 <Button onClick={createGroup} className="flex-1" size="lg">
-                  Create Family
+                  {t('family.createGroup')}
                 </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => setShowCreateModal(false)}
                   size="lg"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
               </div>
             </div>
@@ -377,19 +379,19 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
         <Dialog open={showJoinModal} onOpenChange={setShowJoinModal}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle className="text-xl">Join Family</DialogTitle>
+              <DialogTitle className="text-xl">{t('family.joinGroup')}</DialogTitle>
               <DialogDescription>
-                Enter the invite code shared by your family member to join their family.
+                {t('family.joinGroupDescription')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-4">
               <div className="space-y-2">
-                <Label htmlFor="invite-code" className="text-sm font-medium">Invite Code</Label>
+                <Label htmlFor="invite-code" className="text-sm font-medium">{t('family.inviteCode')}</Label>
                 <Input
                   id="invite-code"
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
-                  placeholder="Enter invite code"
+                  placeholder={t('family.inviteCodePlaceholder')}
                   className="text-base font-mono"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -400,14 +402,14 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
               </div>
               <div className="flex gap-3">
                 <Button onClick={joinGroup} className="flex-1" size="lg">
-                  Join Family
+                  {t('family.joinGroup')}
                 </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => setShowJoinModal(false)}
                   size="lg"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
               </div>
             </div>
@@ -422,13 +424,13 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
         contextualActions={[
           {
             icon: Plus,
-            label: 'Create New Family',
+            label: t('family.createGroup'),
             onClick: () => setShowCreateModal(true),
             disabled: !isOnline
           },
           {
             icon: Users,
-            label: 'Join Family',
+            label: t('family.joinGroup'),
             onClick: () => setShowJoinModal(true),
             disabled: !isOnline,
             variant: 'secondary'
