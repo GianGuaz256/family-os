@@ -61,8 +61,6 @@ const getLocaleFromLanguage = (language: string): FormatterConfig => {
         use24Hour: true,
         startOfWeek: 1 // Monday
       }
-    case 'en':
-    case 'en-US':
     default:
       return {
         ...baseConfig,

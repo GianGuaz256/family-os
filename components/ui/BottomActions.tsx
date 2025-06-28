@@ -20,6 +20,7 @@ import {
   Plus,
   ArrowLeft
 } from 'lucide-react'
+import { renderUserAvatar } from '../../lib/avatar-utils'
 
 interface ContextualAction {
   icon: React.ComponentType<{ className?: string }>
@@ -41,42 +42,7 @@ interface BottomActionsProps {
   isHome?: boolean
 }
 
-const renderUserAvatar = (user: User) => {
-  const profileImage = user.user_metadata?.profile_image
-  
-  if (profileImage) {
-    if (profileImage.startsWith('lucide:')) {
-      const iconName = profileImage.replace('lucide:', '')
-      const iconMap: { [key: string]: any } = {
-        'User': UserIcon,
-        'Star': UserIcon,
-        'Heart': UserIcon,
-        'Crown': UserIcon,
-        'Sun': UserIcon,
-        'Moon': UserIcon,
-        'Flower': UserIcon,
-        'Camera': UserIcon
-      }
-      const LucideIcon = iconMap[iconName] || UserIcon
-      return <LucideIcon className="h-5 w-5 text-primary-foreground" />
-    } else if (profileImage.startsWith('http')) {
-      return <AvatarImage src={profileImage} alt="Profile picture" className="object-cover" />
-    } else {
-      // Emoji - make it bigger and centered
-      return (
-        <div className="flex items-center justify-center w-full h-full">
-          <span className="text-lg leading-none">{profileImage}</span>
-        </div>
-      )
-    }
-  }
-  
-  return (
-    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-      {user.email?.[0].toUpperCase()}
-    </AvatarFallback>
-  )
-}
+
 
 export const BottomActions: React.FC<BottomActionsProps> = ({
   user,
@@ -118,7 +84,7 @@ export const BottomActions: React.FC<BottomActionsProps> = ({
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full w-10 h-10 bg-white/20 dark:bg-white/10 hover:bg-white/30 dark:hover:bg-white/20 border border-white/30 dark:border-white/20 backdrop-blur-sm">
                 <Avatar className="h-8 w-8">
-                  {renderUserAvatar(user)}
+                  {renderUserAvatar(user, { fallbackTextSize: 'xs' })}
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
@@ -126,23 +92,7 @@ export const BottomActions: React.FC<BottomActionsProps> = ({
               <DropdownMenuLabel className="text-xs">
                 <div className="flex items-center space-x-3 p-2">
                   <Avatar className="h-10 w-10">
-                    {user.user_metadata?.profile_image ? (
-                      user.user_metadata.profile_image.startsWith('http') ? (
-                        <AvatarImage src={user.user_metadata.profile_image} alt="Profile picture" className="object-cover" />
-                      ) : user.user_metadata.profile_image.startsWith('lucide:') ? (
-                        <div className="flex items-center justify-center w-full h-full bg-primary text-primary-foreground">
-                          <UserIcon className="h-6 w-6" />
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center w-full h-full bg-primary text-primary-foreground">
-                          <span className="text-xl leading-none">{user.user_metadata.profile_image}</span>
-                        </div>
-                      )
-                    ) : (
-                      <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                        {user.email?.[0].toUpperCase()}
-                      </AvatarFallback>
-                    )}
+                    {renderUserAvatar(user, { size: 'lg', fallbackTextSize: 'sm' })}
                   </Avatar>
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">

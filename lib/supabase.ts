@@ -1,44 +1,56 @@
 import { createClient } from '@supabase/supabase-js'
 
+// Debug flag for development - controlled by environment variable
+// To enable debug logging in development, set DEBUG_SUPABASE=true in your .env.local file
+const DEBUG_SUPABASE = process.env.NODE_ENV === 'development' && process.env.DEBUG_SUPABASE === 'true'
+
 // Get environment variables with fallbacks for build time
 const getSupabaseUrl = (): string => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   
-  // Debug logging - remove after fixing
-  if (typeof window !== 'undefined') {
+  // Debug logging - only in development with debug flag enabled
+  if (DEBUG_SUPABASE && typeof window !== 'undefined') {
     console.log('🔍 DEBUG - Environment variable check:')
-    console.log('NEXT_PUBLIC_SUPABASE_URL:', url)
+    console.log('NEXT_PUBLIC_SUPABASE_URL exists:', !!url)
     console.log('Is undefined:', !url)
     console.log('Is placeholder:', url === 'your_supabase_project_url_here')
   }
   
   if (!url || url === 'your_supabase_project_url_here') {
-    console.error('❌ Supabase URL not found or is placeholder:', url)
+    if (DEBUG_SUPABASE) {
+      console.error('❌ Supabase URL not found or is placeholder')
+    }
     // Fallback for build time - use a valid placeholder URL
     return 'https://placeholder.supabase.co'
   }
   
-  console.log('✅ Using Supabase URL:', url)
+  if (DEBUG_SUPABASE) {
+    console.log('✅ Supabase URL configured successfully')
+  }
   return url
 }
 
 const getSupabaseAnonKey = (): string => {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   
-  // Debug logging - remove after fixing
-  if (typeof window !== 'undefined') {
+  // Debug logging - only in development with debug flag enabled
+  if (DEBUG_SUPABASE && typeof window !== 'undefined') {
     console.log('🔑 DEBUG - Anon key check:')
     console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY exists:', !!key)
     console.log('Key length:', key?.length || 0)
   }
   
   if (!key || key === 'your_supabase_anon_key_here') {
-    console.error('❌ Supabase anon key not found or is placeholder')
+    if (DEBUG_SUPABASE) {
+      console.error('❌ Supabase anon key not found or is placeholder')
+    }
     // Fallback for build time - use a valid placeholder key
     return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder'
   }
   
-  console.log('✅ Using Supabase anon key (length:', key.length, ')')
+  if (DEBUG_SUPABASE) {
+    console.log('✅ Supabase anon key configured successfully (length:', key.length, ')')
+  }
   return key
 }
 

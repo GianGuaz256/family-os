@@ -36,14 +36,48 @@ export const usePullToRefresh = ({
     const container = containerRef.current
     if (!container) return null
     
+    // Helper function to check if an element is scrollable
+    const isElementScrollable = (element: HTMLElement): boolean => {
+      const computedStyle = window.getComputedStyle(element)
+      const overflowY = computedStyle.overflowY
+      const overflow = computedStyle.overflow
+      
+      // Check if element has scrollable overflow
+      const hasScrollableOverflow = 
+        overflowY === 'auto' || 
+        overflowY === 'scroll' || 
+        overflow === 'auto' || 
+        overflow === 'scroll'
+      
+      // Element must have scrollable overflow AND scrollable content
+      return hasScrollableOverflow && element.scrollHeight > element.clientHeight
+    }
+    
     // Check if container itself is scrollable
-    if (container.scrollHeight > container.clientHeight) {
+    if (isElementScrollable(container)) {
       return container
     }
     
+    // Recursively check child elements for scrollability
+    const findScrollableChild = (parent: HTMLElement): HTMLElement | null => {
+      for (const child of Array.from(parent.children)) {
+        if (child instanceof HTMLElement) {
+          if (isElementScrollable(child)) {
+            return child
+          }
+          // Recursively check nested children
+          const nestedScrollable = findScrollableChild(child)
+          if (nestedScrollable) {
+            return nestedScrollable
+          }
+        }
+      }
+      return null
+    }
+    
     // Look for scrollable child element
-    const scrollableChild = container.querySelector('[class*="overflow-y-auto"], [class*="overflow-auto"]')
-    if (scrollableChild && scrollableChild instanceof HTMLElement) {
+    const scrollableChild = findScrollableChild(container)
+    if (scrollableChild) {
       return scrollableChild
     }
     

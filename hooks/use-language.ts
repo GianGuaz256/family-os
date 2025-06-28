@@ -46,7 +46,7 @@ export const useLanguage = (user?: User | null): UseLanguageReturn => {
     }
 
     loadUserLanguage()
-  }, [user?.id, currentLanguage])
+  }, [user?.id])
 
   // Sync with i18n changes
   useEffect(() => {
