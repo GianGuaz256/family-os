@@ -23,7 +23,7 @@
 - [x] Fixare lo scanner del codice a barre locale e se non funziona l'invio all'AI che ne deve estrarre tutte le informazioni
 - [x] Divisione degli events dalle recurrive expenses per fare un tracker con mini dashboard per i costi etc
 
-# TODO PER VERSIONE 1.0.0
+# TODO PER VERSIONE 0.0.1
 
 - [x] Salvare documenta su DB
 - [x] Pull to refresh (FIXED - now only on main dashboard with proper fixed layout)
@@ -32,15 +32,46 @@
 - [x] Aggiungere notes (?)
 - [x] Applicazione notes + Ping
 - [x] Fixed critical dependency
-- [] App per host di AirBnb (esempio) per condividere informazioni importanti sulla casa (doc, guide, codici etc) ai guest
-- [] Creazione di utenti temporanei con solo username e accesso da link
-- [] Salvare dati offline 
-- [] Nelle settings della family gestire i member roles e permissions
-- [] Cosa mettere al posto dell’orario
-- [] Fixare la logica di visualizzazione dei nomi
 - [x] Aggiungere immagine profilo (COMPLETED - Profile image functionality added to settings) 
-- [] Mostrare icona di fianco alla creazione di un documento, evento o task
-- [] Mettere la priorità sulla task
-- [] Gestire chi crea la task e di chi la completa
-- [] Gestire visualizzazione delle task completate con alternative come 
+
+# TODO PER VERSIONE 0.0.2
+
+## Cudi
+
+- [] Gestione migliore del banner delle notifiche sulle App (esempio: numero di eventi della settimana, lista di eventi, etc)
+- [] Fixare la logica di visualizzazione dei nomi
+- [] Mostrare icona delle user di fianco alla creazione di un documento, evento o task
+- [] Mettere la priorità sulla task (flag: high, medium, low con colori diversi) e ordina le task all'interno della lista con la priorità
+- [] Cosa succede quando si completa una task? Impostare un bottone dove inserire la logica di completamento (eliminato dopo una settimana, etc)
+- [] Fixare visualizzazione del componente di menu per settings dell'utente
+- [] Unificare la logica del bottone "+" nella pagina di gestione delle famiglie. Quando cliccato si apre modale per o aggiungersi ad una famiglia o creare una nuova famiglia
+- [] Inserire BottomActions anche all'interno della pagina di gestione della famiglia
+- [] Fixare la visualizzazione del giorno quando se ne seleziona uno direttamente dal calendario. Nella lista degli eventi fixare la visualizzazione del giorno e soprattutto del mese. Sempre nella lista aggiungere per ogni mese un titolo divisorio tra i vari eventi per renderlo più leggibile. Fixare la visualizzazione dei past events (con un limite da definire). Il bottone di delete degli eventi dalla lista è visualizzabile solo all'interno di un evento. Fixare la visualizzazione dell'evento quando si è in dark mode.
+
+## Gian
+
+- [] Fixare l'icona dell'App (logo)
+- [] Ridurre il padding all'interno dell'header delle pagine delle app
+- [] Salvare dati offline di Cards e Lists (zustand or other options)
+- [] Lasciare banner selezione famiglia on top a tutto la Dashboard e sotto inseriamo la nota "ping"
+- [] Fixare visualizzazione MD all'interno delle note (più piccolo e leggibile da mobile)
+- [] Fixare il colore del MD Editor quando è in modalità dark, il edit non solo se lo user è admin (TDB)
+- [] Nella gestione della famiglia fixare UI per condivisione link (un solo bottone)
+- [] Utilizzare stesso componente per la selezione della icona sia su family che su settings
+- [] Controllare i vari tag all'interno di tutta l'app
+- [] Aggiungere un bottone sul detail delle card per visualizzazione la carta in fullscreen mode
+
+# TODO PER VERSIONE LONG TERM
+
+- [] App per host di AirBnb (esempio) per condividere informazioni importanti sulla casa (doc, guide, codici etc) ai guest
 - [] Refactor con routing system (LENTO?)
+- [] Gestione connessione degli elementi creati con chi li crea e poi inserire logica per visualizzazione stile notifica (esempio: se un evento è creato da un membro della famiglia, la notifica sarà visualizzata con il nome del membro agli altri membri della famiglia)
+- [] Strutturare un sistema di notifiche da inviare via mail o sms con recap settimanale etc con TODO
+- [] Creazione di utenti temporanei con solo username e accesso da link
+- [] Nelle settings della family gestire i member roles e permissions
+- [] Gestire chi crea la task e di chi la completa (flag: created by, completed by)
+- [] Impostare lazy loading per velocizzare l'app in caricamento
+- [] Creare componente per visualizzazione dei documenti (pdf, doc, jpg, etc)
+- [] Gestione del brand e dei loghi per le carte
+- [] Gestione del loading nella creazione/eliminazione di elementi (eventi, task, etc)
+- [] Fixare il funzionamento della camera quando si scannerizza una carta
