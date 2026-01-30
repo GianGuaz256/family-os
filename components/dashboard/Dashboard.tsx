@@ -127,7 +127,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
             .select('*')
             .eq('group_id', group.id)
             .order('created_at', { ascending: false })
-          setDocuments(documentsData || [])
+          
+          // Fetch profiles for document uploaders
+          if (documentsData && documentsData.length > 0) {
+            const uploaderIds = [...new Set(documentsData.map((d: any) => d.uploaded_by).filter(Boolean))]
+            if (uploaderIds.length > 0) {
+              const { data: profilesData } = await supabase
+                .from('profiles')
+                .select('id, email, display_name, profile_image')
+                .in('id', uploaderIds)
+              
+              // Merge profiles with documents
+              const documentsWithProfiles = documentsData.map((doc: any) => ({
+                ...doc,
+                uploader_profile: doc.uploaded_by ? profilesData?.find(p => p.id === doc.uploaded_by) || null : null
+              }))
+              setDocuments(documentsWithProfiles)
+            } else {
+              setDocuments(documentsData)
+            }
+          } else {
+            setDocuments(documentsData || [])
+          }
           break
         }
 
@@ -167,7 +188,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
             .select('*')
             .eq('group_id', group.id)
             .order('created_at', { ascending: false })
-          setNotes(notesData || [])
+          
+          // Fetch profiles for note creators
+          if (notesData && notesData.length > 0) {
+            const creatorIds = [...new Set(notesData.map((n: any) => n.created_by))]
+            const { data: profilesData } = await supabase
+              .from('profiles')
+              .select('id, email, display_name, profile_image')
+              .in('id', creatorIds)
+            
+            // Merge profiles with notes
+            const notesWithProfiles = notesData.map((note: any) => ({
+              ...note,
+              creator_profile: profilesData?.find(p => p.id === note.created_by) || null
+            }))
+            setNotes(notesWithProfiles)
+          } else {
+            setNotes(notesData || [])
+          }
           break
         }
       }
@@ -200,12 +238,42 @@ export const Dashboard: React.FC<DashboardProps> = ({
         supabase.from('notes').select('*').eq('group_id', group.id).order('created_at', { ascending: false })
       ])
 
+      // Collect all user IDs that need profiles
+      const documentsData = documentsResult.data || []
+      const notesData = notesResult.data || []
+      
+      const uploaderIds = [...new Set(documentsData.map((d: any) => d.uploaded_by).filter(Boolean))]
+      const creatorIds = [...new Set(notesData.map((n: any) => n.created_by))]
+      const allUserIds = [...new Set([...uploaderIds, ...creatorIds])]
+
+      // Fetch all profiles at once if there are any user IDs
+      let profilesData: any[] = []
+      if (allUserIds.length > 0) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, email, display_name, profile_image')
+          .in('id', allUserIds)
+        profilesData = data || []
+      }
+
+      // Merge profiles with documents
+      const documentsWithProfiles = documentsData.map((doc: any) => ({
+        ...doc,
+        uploader_profile: doc.uploaded_by ? profilesData.find(p => p.id === doc.uploaded_by) || null : null
+      }))
+
+      // Merge profiles with notes
+      const notesWithProfiles = notesData.map((note: any) => ({
+        ...note,
+        creator_profile: profilesData.find(p => p.id === note.created_by) || null
+      }))
+
       setLists(listsResult.data || [])
-      setDocuments(documentsResult.data || [])
+      setDocuments(documentsWithProfiles)
       setEvents(eventsResult.data || [])
       setCards(cardsResult.data || [])
       setSubscriptions(subscriptionsResult.data || [])
-      setNotes(notesResult.data || [])
+      setNotes(notesWithProfiles)
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {

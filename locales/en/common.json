@@ -25,7 +25,19 @@
     "passwordRequirement": "Password should be at least 6 characters",
     "emailConfirmationRequired": "Please check your email to confirm your account before signing in.",
     "alreadyHaveAccount": "Already have an account? Sign In",
-    "dontHaveAccount": "Don't have an account? Sign Up"
+    "dontHaveAccount": "Don't have an account? Sign Up",
+    "forgotPasswordTitle": "Reset Your Password",
+    "forgotPasswordDescription": "Enter your email and we'll send you a link to reset your password.",
+    "sendResetLink": "Send Reset Link",
+    "resetLinkSent": "Check your email for the reset link.",
+    "backToLogin": "Back to Login",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "updatePassword": "Update Password",
+    "passwordUpdated": "Password updated successfully! You can now sign in.",
+    "passwordsDoNotMatch": "Passwords do not match",
+    "resetPasswordTitle": "Set New Password",
+    "resetPasswordDescription": "Enter your new password below."
   },
   "navigation": {
     "dashboard": "Dashboard",

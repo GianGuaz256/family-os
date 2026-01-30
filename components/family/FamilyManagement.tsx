@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase, getSiteUrl } from '../../lib/supabase'
+import { renderProfileAvatar, ProfileData } from '../../lib/avatar-utils'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Alert, AlertDescription } from '../ui/alert'
@@ -50,6 +51,8 @@ interface FamilyMember {
   user_id: string
   created_at: string
   email?: string | null
+  display_name?: string | null
+  profile_image?: string | null
 }
 
 interface FamilyManagementProps {
@@ -88,27 +91,43 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
   const fetchFamilyMembers = async () => {
     try {
       setError('')
-      const { data, error } = await supabase
+      // First, get group members
+      const { data: membersData, error: membersError } = await supabase
         .from('group_members')
         .select('id, user_id, created_at')
         .eq('group_id', group.id)
 
-      if (error) throw error
+      if (membersError) throw membersError
+
+      // Then fetch profiles for all members
+      const userIds = membersData?.map(m => m.user_id) || []
       
-      // For now, we'll just use the basic member data
-      // In a real app, you might want to create a profiles table
-      const membersWithEmails = await Promise.all(
-        (data || []).map(async (member: any) => {
-          // For now, we can't get email from auth.users directly via query
-          // So we'll show the user_id and mark if it's the current user
-          return {
-            ...member,
-            email: member.user_id === user.id ? user.email : null
-          }
-        })
-      )
+      if (userIds.length === 0) {
+        setMembers([])
+        return
+      }
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email, display_name, profile_image')
+        .in('id', userIds)
+
+      if (profilesError) throw profilesError
+
+      // Merge the data
+      const membersWithProfiles = membersData.map((member: any) => {
+        const profile = profilesData?.find(p => p.id === member.user_id)
+        return {
+          id: member.id,
+          user_id: member.user_id,
+          created_at: member.created_at,
+          email: profile?.email || null,
+          display_name: profile?.display_name || null,
+          profile_image: profile?.profile_image || null
+        }
+      })
       
-      setMembers(membersWithEmails || [])
+      setMembers(membersWithProfiles)
     } catch (error: any) {
       console.error('Error fetching family members:', error)
       setError('Failed to load family members')
@@ -402,47 +421,59 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
                 </div>
               ) : (
                 <div className="space-y-2 sm:space-y-3 max-h-56 sm:max-h-64 overflow-y-auto">
-                  {members.map((member) => (
-                    <div key={member.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800">
-                      <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
-                        <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm">
-                          {member.email?.[0]?.toUpperCase() || member.user_id.slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm sm:text-base font-medium truncate">
-                            {member.email || `User ${member.user_id.slice(0, 8)}...`}
+                  {members.map((member) => {
+                    // Create a profile object for the avatar utility
+                    const memberProfile: ProfileData = {
+                      id: member.user_id,
+                      email: member.email,
+                      display_name: member.display_name,
+                      profile_image: member.profile_image,
+                      updated_at: member.created_at
+                    }
+                    
+                    // Determine display name
+                    const displayName = member.display_name || member.email || `User ${member.user_id.slice(0, 8)}...`
+                    
+                    return (
+                      <div key={member.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800">
+                        <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
+                          {renderProfileAvatar(memberProfile, { size: 'sm', fallbackTextSize: 'xs' })}
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm sm:text-base font-medium truncate">
+                              {displayName}
+                            </p>
+                            {member.user_id === group.owner_id && (
+                              <Crown className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 flex-shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                            {member.user_id === user.id ? 'You' : member.email || 'Family Member'}
                           </p>
-                          {member.user_id === group.owner_id && (
-                            <Crown className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 flex-shrink-0" />
-                          )}
                         </div>
-                        <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                          {member.user_id === user.id ? 'You' : 'Family Member'}
-                        </p>
+                        <div className="text-xs text-muted-foreground hidden sm:block">
+                          Joined {formatDate(member.created_at)}
+                        </div>
+                        <div className="text-xs text-muted-foreground sm:hidden">
+                          {formatDate(member.created_at).split(',')[0]}
+                        </div>
+                        {/* Remove member button - only show for non-owner members */}
+                        {member.user_id !== group.owner_id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveMember(member)}
+                            disabled={!isOnline}
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
+                            title="Remove member"
+                          >
+                            <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                          </Button>
+                        )}
                       </div>
-                      <div className="text-xs text-muted-foreground hidden sm:block">
-                        Joined {formatDate(member.created_at)}
-                      </div>
-                      <div className="text-xs text-muted-foreground sm:hidden">
-                        {formatDate(member.created_at).split(',')[0]}
-                      </div>
-                      {/* Remove member button - only show for non-owner members */}
-                      {member.user_id !== group.owner_id && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveMember(member)}
-                          disabled={!isOnline}
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
-                          title="Remove member"
-                        >
-                          <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </CardContent>

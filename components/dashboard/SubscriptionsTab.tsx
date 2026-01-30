@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
+import { renderProfileAvatar, ProfileData } from '../../lib/avatar-utils'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -77,8 +78,9 @@ interface Subscription {
 interface GroupMember {
   id: string
   user_id: string
-  email?: string
-  display_name?: string
+  email?: string | null
+  display_name?: string | null
+  profile_image?: string | null
 }
 
 interface SubscriptionsTabProps {
@@ -146,23 +148,42 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
 
   const fetchGroupMembers = async () => {
     try {
-      const { data, error } = await supabase
+      // First, get group members
+      const { data: membersData, error: membersError } = await supabase
         .from('group_members')
-        .select(`
-          id,
-          user_id
-        `)
+        .select('id, user_id')
         .eq('group_id', groupId)
 
-      if (error) throw error
+      if (membersError) throw membersError
 
-      // For now, we'll just use user IDs and emails
-      // In a real app, you'd fetch user profiles
-      setGroupMembers(data?.map(member => ({
-        ...member,
-        email: member.user_id === currentUser.id ? currentUser.email : `User ${member.user_id.slice(0, 8)}`,
-        display_name: member.user_id === currentUser.id ? 'You' : `User ${member.user_id.slice(0, 8)}`
-      })) || [])
+      // Then fetch profiles for all members
+      const userIds = membersData?.map(m => m.user_id) || []
+      
+      if (userIds.length === 0) {
+        setGroupMembers([])
+        return
+      }
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email, display_name, profile_image')
+        .in('id', userIds)
+
+      if (profilesError) throw profilesError
+
+      // Merge the data
+      const membersWithProfiles = membersData.map((member: any) => {
+        const profile = profilesData?.find(p => p.id === member.user_id)
+        return {
+          id: member.id,
+          user_id: member.user_id,
+          email: profile?.email || null,
+          display_name: profile?.display_name || null,
+          profile_image: profile?.profile_image || null
+        }
+      })
+      
+      setGroupMembers(membersWithProfiles)
     } catch (error) {
       console.error('Error fetching group members:', error)
     }
@@ -752,11 +773,15 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
                               <span className="text-sm text-muted-foreground">Payer</span>
                               <div className="flex items-center gap-2">
                                 <Avatar className="h-5 w-5">
-                                  <AvatarFallback className="text-xs">
-                                    {payer.display_name?.charAt(0).toUpperCase() || 'U'}
-                                  </AvatarFallback>
+                                  {renderProfileAvatar({
+                                    id: payer.user_id,
+                                    email: payer.email,
+                                    display_name: payer.display_name,
+                                    profile_image: payer.profile_image,
+                                    updated_at: new Date().toISOString()
+                                  }, { size: 'sm', fallbackTextSize: 'xs' })}
                                 </Avatar>
-                                <span className="text-sm">{payer.display_name || payer.email}</span>
+                                <span className="text-sm">{payer.display_name || payer.email || 'User'}</span>
                               </div>
                             </div>
                           )}

@@ -56,14 +56,29 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     
     setIsLoading(true)
     try {
-      const { error } = await supabase.auth.updateUser({
+      // Update auth user metadata
+      const { error: authError } = await supabase.auth.updateUser({
         data: { 
           display_name: displayName,
           profile_image: profileImage
         }
       })
 
-      if (error) throw error
+      if (authError) throw authError
+
+      // Sync to public profiles table so other family members can see the changes
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          email: user.email,
+          display_name: displayName,
+          profile_image: profileImage
+        }, {
+          onConflict: 'id'
+        })
+
+      if (profileError) throw profileError
       
       setIsSaved(true)
       setTimeout(() => setIsSaved(false), 2000)
@@ -79,13 +94,28 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     
     setIsUpdatingImage(true)
     try {
-      const { error } = await supabase.auth.updateUser({
+      // Update auth user metadata
+      const { error: authError } = await supabase.auth.updateUser({
         data: { 
           profile_image: newImage
         }
       })
 
-      if (error) throw error
+      if (authError) throw authError
+
+      // Sync to public profiles table so other family members can see the changes
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          email: user.email,
+          display_name: displayName,
+          profile_image: newImage
+        }, {
+          onConflict: 'id'
+        })
+
+      if (profileError) throw profileError
       
       setProfileImage(newImage)
       setShowImageSelector(false)
