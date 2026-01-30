@@ -402,6 +402,29 @@ export type Database = {
           updated_at?: string
         }
       }
+      profiles: {
+        Row: {
+          id: string
+          email: string | null
+          display_name: string | null
+          profile_image: string | null
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          email?: string | null
+          display_name?: string | null
+          profile_image?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string | null
+          display_name?: string | null
+          profile_image?: string | null
+          updated_at?: string
+        }
+      }
     }
   }
 } 

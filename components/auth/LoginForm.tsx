@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import Link from 'next/link'
 import { supabase, getAuthRedirectUrl } from '../../lib/supabase'
 import { ThemeSwitcher } from '../ui/ThemeSwitcher'
 import { LanguageSelector } from '../ui/LanguageSelector'
@@ -106,6 +107,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                   <p className="text-sm text-muted-foreground">
                     {t('auth.passwordRequirement')}
                   </p>
+                )}
+                {!isSignUp && (
+                  <div className="flex justify-end">
+                    <Link 
+                      href="/auth/forgot-password" 
+                      className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                    >
+                      {t('auth.forgotPassword')}
+                    </Link>
+                  </div>
                 )}
               </div>
               

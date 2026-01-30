@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { renderProfileAvatar, ProfileData } from '../../lib/avatar-utils'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -7,6 +8,7 @@ import { Card, CardContent } from '../ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { FileUpload } from '../ui/FileUpload'
 import { Alert, AlertDescription } from '../ui/alert'
+import { Avatar } from '../ui/avatar'
 import { AppHeader } from '../ui/AppHeader'
 import {
   Dialog,
@@ -42,6 +44,11 @@ interface Document {
   uploaded_by: string | null
   created_at: string
   updated_at: string | null
+  uploader_profile?: {
+    email: string | null
+    display_name: string | null
+    profile_image: string | null
+  }
 }
 
 interface DocumentsTabProps {
@@ -284,9 +291,27 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                         }
                       </h3>
                       <div className="space-y-1">
-                        <p className="text-xs sm:text-sm text-muted-foreground">
-                          Added {formatDate(doc.created_at)}
-                        </p>
+                        <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                          <span>Added {formatDate(doc.created_at)}</span>
+                          {doc.uploader_profile && doc.uploaded_by && (
+                            <div className="flex items-center gap-1">
+                              <Avatar className="h-4 w-4">
+                                {renderProfileAvatar({
+                                  id: doc.uploaded_by,
+                                  email: doc.uploader_profile.email,
+                                  display_name: doc.uploader_profile.display_name,
+                                  profile_image: doc.uploader_profile.profile_image,
+                                  updated_at: doc.created_at
+                                }, { size: 'sm', fallbackTextSize: 'xs' })}
+                              </Avatar>
+                              <span>
+                                {doc.uploaded_by === currentUserId 
+                                  ? 'You' 
+                                  : doc.uploader_profile.display_name || doc.uploader_profile.email || 'Member'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                         {getDocumentType(doc) === 'file' && doc.file_size && (
                           <p className="text-xs text-muted-foreground">
                             {formatFileSize(doc.file_size)}

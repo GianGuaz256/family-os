@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { renderProfileAvatar, ProfileData } from '../../lib/avatar-utils'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Textarea } from '../ui/textarea'
 import { Card, CardHeader, CardContent } from '../ui/card'
 import { Badge } from '../ui/badge'
+import { Avatar } from '../ui/avatar'
 import { AppHeader } from '../ui/AppHeader'
 import {
   Dialog,
@@ -35,6 +37,11 @@ interface Note {
   created_by: string
   created_at: string
   updated_at: string
+  creator_profile?: {
+    email: string | null
+    display_name: string | null
+    profile_image: string | null
+  }
 }
 
 interface NotesTabProps {
@@ -340,9 +347,29 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                   {getPreviewText(note.content)}
                 </p>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    <span>{formatDate(note.created_at)}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      <span>{formatDate(note.created_at)}</span>
+                    </div>
+                    {note.creator_profile && (
+                      <div className="flex items-center gap-1">
+                        <Avatar className="h-4 w-4">
+                          {renderProfileAvatar({
+                            id: note.created_by,
+                            email: note.creator_profile.email,
+                            display_name: note.creator_profile.display_name,
+                            profile_image: note.creator_profile.profile_image,
+                            updated_at: note.created_at
+                          }, { size: 'sm', fallbackTextSize: 'xs' })}
+                        </Avatar>
+                        <span>
+                          {note.created_by === currentUserId 
+                            ? 'You' 
+                            : note.creator_profile.display_name || note.creator_profile.email || 'Member'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   {note.created_by === currentUserId && (
                     <div className="flex items-center gap-2">
@@ -476,11 +503,30 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                     </Button>
                   )}
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
                     <span>Created {formatDate(selectedNote.created_at)}</span>
                   </div>
+                  {selectedNote.creator_profile && (
+                    <div className="flex items-center gap-1.5">
+                      <User className="h-3 w-3" />
+                      <Avatar className="h-5 w-5">
+                        {renderProfileAvatar({
+                          id: selectedNote.created_by,
+                          email: selectedNote.creator_profile.email,
+                          display_name: selectedNote.creator_profile.display_name,
+                          profile_image: selectedNote.creator_profile.profile_image,
+                          updated_at: selectedNote.created_at
+                        }, { size: 'sm', fallbackTextSize: 'xs' })}
+                      </Avatar>
+                      <span>
+                        {selectedNote.created_by === currentUserId 
+                          ? 'You' 
+                          : selectedNote.creator_profile.display_name || selectedNote.creator_profile.email || 'Member'}
+                      </span>
+                    </div>
+                  )}
                   {selectedNote.updated_at !== selectedNote.created_at && (
                     <div className="flex items-center gap-1">
                       <Edit3 className="h-3 w-3" />

@@ -25,7 +25,19 @@
     "passwordRequirement": "La password deve essere di almeno 6 caratteri",
     "emailConfirmationRequired": "Controlla la tua email per confermare l'account prima di accedere.",
     "alreadyHaveAccount": "Hai già un account? Accedi",
-    "dontHaveAccount": "Non hai un account? Registrati"
+    "dontHaveAccount": "Non hai un account? Registrati",
+    "forgotPasswordTitle": "Reimposta la tua password",
+    "forgotPasswordDescription": "Inserisci la tua email e ti invieremo un link per reimpostare la password.",
+    "sendResetLink": "Invia link di reimpostazione",
+    "resetLinkSent": "Controlla la tua email per il link di reimpostazione.",
+    "backToLogin": "Torna al login",
+    "newPassword": "Nuova password",
+    "confirmPassword": "Conferma password",
+    "updatePassword": "Aggiorna password",
+    "passwordUpdated": "Password aggiornata con successo! Ora puoi accedere.",
+    "passwordsDoNotMatch": "Le password non corrispondono",
+    "resetPasswordTitle": "Imposta nuova password",
+    "resetPasswordDescription": "Inserisci la tua nuova password qui sotto."
   },
   "navigation": {
     "dashboard": "Dashboard",
