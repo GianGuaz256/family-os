@@ -17,6 +17,8 @@ const nextConfig = {
   output: "standalone",
   images: {
     domains: ["localhost", "family.themewfi.xyz"],
+    // Disable image optimization during build to avoid sharp dependency issues on Vercel
+    unoptimized: process.env.NODE_ENV === "production",
   },
   experimental: {
     // appDir is no longer needed in Next.js 14
