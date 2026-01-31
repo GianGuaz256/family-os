@@ -10,11 +10,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
+import { Alert, AlertDescription } from '../ui/alert'
 import { VirtualCard } from '../ui/VirtualCard'
-import { BarcodeScanner } from '../ui/BarcodeScanner'
+import { SimpleBarcodeScanner } from '../ui/SimpleBarcodeScanner'
 import { AppHeader } from '../ui/AppHeader'
 import { AppConfig } from '../../lib/app-types'
-import { CreditCard, Plus, Trash2, Edit, X, FileText, QrCode } from 'lucide-react'
+import { validateLoyaltyCard, fieldValidators } from '../../lib/card-validation'
+import { CreditCard, Plus, Trash2, Edit, X, FileText, QrCode, Camera, FileEdit } from 'lucide-react'
 
 interface LoyaltyCard {
   id: string
@@ -43,11 +46,10 @@ export const CardsTab: React.FC<CardsTabProps> = ({
   isOnline,
   appConfig
 }) => {
-  const [showScanModal, setShowScanModal] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showFullscreenCard, setShowFullscreenCard] = useState<LoyaltyCard | null>(null)
   const [editingCard, setEditingCard] = useState<LoyaltyCard | null>(null)
-  const [barcodeScanned, setBarcodeScanned] = useState(false)
+  const [activeTab, setActiveTab] = useState<string>('scan')
   const [formData, setFormData] = useState({
     name: '',
     brand: '',
@@ -57,14 +59,18 @@ export const CardsTab: React.FC<CardsTabProps> = ({
     expiry_date: '',
     notes: ''
   })
+  const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({})
+  const [isSaving, setIsSaving] = useState(false)
 
   // Listen for custom events from BottomActions
   useEffect(() => {
     const handleOpenModal = (event: CustomEvent) => {
       if (event.detail.type === 'card') {
+        setActiveTab('manual')
         setShowAddModal(true)
       } else if (event.detail.type === 'scan') {
-        setShowScanModal(true)
+        setActiveTab('scan')
+        setShowAddModal(true)
       }
     }
 
@@ -86,33 +92,40 @@ export const CardsTab: React.FC<CardsTabProps> = ({
     })
     setEditingCard(null)
     setShowFullscreenCard(null)
-    setBarcodeScanned(false)
+    setValidationErrors({})
+    setActiveTab('scan')
   }
 
   const handleBarcodeScanned = (barcode: string) => {
     setFormData(prev => ({
       ...prev,
       barcode: barcode,
-      name: prev.name || 'Loyalty Card' // Provide a default name if none exists
+      name: prev.name || 'Loyalty Card'
     }))
-    setBarcodeScanned(true) // Mark that we've scanned a barcode
+    setActiveTab('manual')
   }
 
 
 
   const saveCard = async () => {
-    if (!formData.name.trim() || !isOnline) return
+    if (!isOnline) return
+
+    setIsSaving(true)
+    setValidationErrors({})
+
+    // Validate data
+    const validation = validateLoyaltyCard(formData)
+    
+    if (!validation.success) {
+      setValidationErrors(validation.errors)
+      setIsSaving(false)
+      return
+    }
 
     try {
       const cardData = {
         group_id: groupId,
-        name: formData.name,
-        brand: formData.brand || null,
-        card_number: formData.card_number || null,
-        barcode: formData.barcode || null,
-        points_balance: formData.points_balance || null,
-        expiry_date: formData.expiry_date || null,
-        notes: formData.notes || null
+        ...validation.data
       }
 
       if (editingCard) {
@@ -129,11 +142,13 @@ export const CardsTab: React.FC<CardsTabProps> = ({
       }
 
       resetForm()
-      setShowScanModal(false)
       setShowAddModal(false)
       onUpdate()
     } catch (error) {
       console.error('Error saving card:', error)
+      setValidationErrors({ general: ['Failed to save card. Please try again.'] })
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -164,6 +179,7 @@ export const CardsTab: React.FC<CardsTabProps> = ({
       expiry_date: card.expiry_date || '',
       notes: card.notes || ''
     })
+    setActiveTab('manual')
     setShowAddModal(true)
   }
 
@@ -227,137 +243,7 @@ export const CardsTab: React.FC<CardsTabProps> = ({
         </div>
       )}
 
-      {/* Scan Modal */}
-      <Dialog
-        open={showScanModal}
-        onOpenChange={(open) => {
-          setShowScanModal(open)
-          if (!open) {
-            setBarcodeScanned(false)
-            resetForm()
-          }
-        }}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Scan Barcode</DialogTitle>
-          </DialogHeader>
-        <div className="space-y-4">
-          {/* Barcode Scanner */}
-          {!barcodeScanned && (
-            <BarcodeScanner
-              isActive={true}
-              onScanSuccess={handleBarcodeScanned}
-              onCancel={() => setShowScanModal(false)}
-              onError={(error) => console.error('Barcode scan error:', error)}
-            />
-          )}
-
-          {/* Barcode Scanned Form */}
-          {barcodeScanned && (
-            <div className="space-y-4">
-              <div className="w-full h-20 bg-green-50 dark:bg-green-950/50 border-2 border-green-200 dark:border-green-800 rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <QrCode className="h-6 w-6 text-green-600 dark:text-green-400 mx-auto mb-1" />
-                  <p className="text-sm font-medium text-green-700 dark:text-green-300">
-                    Barcode Scanned Successfully!
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="scan-card-name">Card Name *</Label>
-                  <Input
-                    id="scan-card-name"
-                    value={formData.name}
-                    onChange={(e) => handleFormChange('name', e.target.value)}
-                    placeholder="Store or brand name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="scan-brand">Brand</Label>
-                  <Input
-                    id="scan-brand"
-                    value={formData.brand}
-                    onChange={(e) => handleFormChange('brand', e.target.value)}
-                    placeholder="Brand name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="scan-barcode">Barcode</Label>
-                  <Input
-                    id="scan-barcode"
-                    value={formData.barcode}
-                    onChange={(e) => handleFormChange('barcode', e.target.value)}
-                    placeholder="Barcode number"
-                    disabled
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="scan-points">Points Balance</Label>
-                  <Input
-                    id="scan-points"
-                    value={formData.points_balance}
-                    onChange={(e) => handleFormChange('points_balance', e.target.value)}
-                    placeholder="Current points/balance"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="scan-expiry">Expiry Date</Label>
-                  <Input
-                    id="scan-expiry"
-                    value={formData.expiry_date}
-                    onChange={(e) => handleFormChange('expiry_date', e.target.value)}
-                    placeholder="MM/YY or MM/YYYY"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="scan-notes">Notes</Label>
-                  <Input
-                    id="scan-notes"
-                    value={formData.notes}
-                    onChange={(e) => handleFormChange('notes', e.target.value)}
-                    placeholder="Additional notes or benefits"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button 
-                  onClick={saveCard} 
-                  className="flex-1" 
-                  disabled={!formData.name.trim()}
-                >
-                  Save Card
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setBarcodeScanned(false)
-                    resetForm()
-                  }}
-                >
-                  Scan Again
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setShowScanModal(false)
-                    setBarcodeScanned(false)
-                    resetForm()
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add/Edit Manual Modal */}
+      {/* Add/Edit Card Modal with Tabs */}
       <Dialog
         open={showAddModal}
         onOpenChange={(open) => {
@@ -367,90 +253,162 @@ export const CardsTab: React.FC<CardsTabProps> = ({
           }
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingCard ? "Edit Card" : "Add New Card"}</DialogTitle>
+            <DialogTitle>{editingCard ? "Edit Card" : "Add Loyalty Card"}</DialogTitle>
           </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="manual-card-name">Card Name *</Label>
-            <Input
-              id="manual-card-name"
-              value={formData.name}
-              onChange={(e) => handleFormChange('name', e.target.value)}
-              placeholder="Store or brand name"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="manual-brand">Brand</Label>
-            <Input
-              id="manual-brand"
-              value={formData.brand}
-              onChange={(e) => handleFormChange('brand', e.target.value)}
-              placeholder="Brand name"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="manual-card-number">Card Number</Label>
-            <Input
-              id="manual-card-number"
-              value={formData.card_number}
-              onChange={(e) => handleFormChange('card_number', e.target.value)}
-              placeholder="Member/card number"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="manual-barcode">Barcode</Label>
-            <Input
-              id="manual-barcode"
-              value={formData.barcode}
-              onChange={(e) => handleFormChange('barcode', e.target.value)}
-              placeholder="Barcode number"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="manual-points">Points Balance</Label>
-            <Input
-              id="manual-points"
-              value={formData.points_balance}
-              onChange={(e) => handleFormChange('points_balance', e.target.value)}
-              placeholder="Current points/balance"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="manual-expiry">Expiry Date</Label>
-            <Input
-              id="manual-expiry"
-              value={formData.expiry_date}
-              onChange={(e) => handleFormChange('expiry_date', e.target.value)}
-              placeholder="MM/YY or MM/YYYY"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="manual-notes">Notes</Label>
-            <Input
-              id="manual-notes"
-              value={formData.notes}
-              onChange={(e) => handleFormChange('notes', e.target.value)}
-              placeholder="Additional notes or benefits"
-            />
-          </div>
-          
-          <div className="flex gap-2">
-            <Button onClick={saveCard} className="flex-1" disabled={!formData.name.trim()}>
-              {editingCard ? "Update Card" : "Add Card"}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setShowAddModal(false)
-                resetForm()
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
+
+          {validationErrors.general && (
+            <Alert className="border-destructive/50 text-destructive">
+              <AlertDescription>{validationErrors.general[0]}</AlertDescription>
+            </Alert>
+          )}
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="scan" disabled={!!editingCard}>
+                <Camera className="h-4 w-4 mr-2" />
+                Scan
+              </TabsTrigger>
+              <TabsTrigger value="manual">
+                <FileEdit className="h-4 w-4 mr-2" />
+                Manual
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Scan Tab */}
+            <TabsContent value="scan" className="space-y-4">
+              <SimpleBarcodeScanner
+                onScanSuccess={handleBarcodeScanned}
+                onCancel={() => setShowAddModal(false)}
+                onError={(error) => console.error('Barcode scan error:', error)}
+              />
+            </TabsContent>
+
+            {/* Manual Entry Tab */}
+            <TabsContent value="manual" className="space-y-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="card-name">
+                    Card Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="card-name"
+                    value={formData.name}
+                    onChange={(e) => handleFormChange('name', e.target.value)}
+                    placeholder="e.g., Tesco Clubcard, Nectar Card"
+                  />
+                  {validationErrors.name && (
+                    <p className="text-sm text-destructive">{validationErrors.name[0]}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="brand">Brand / Store</Label>
+                  <Input
+                    id="brand"
+                    value={formData.brand}
+                    onChange={(e) => handleFormChange('brand', e.target.value)}
+                    placeholder="e.g., Tesco, Sainsbury's, Lidl"
+                  />
+                  {validationErrors.brand && (
+                    <p className="text-sm text-destructive">{validationErrors.brand[0]}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="card-number">Member Number</Label>
+                  <Input
+                    id="card-number"
+                    value={formData.card_number}
+                    onChange={(e) => handleFormChange('card_number', e.target.value)}
+                    placeholder="Your member/card number"
+                  />
+                  {validationErrors.card_number && (
+                    <p className="text-sm text-destructive">{validationErrors.card_number[0]}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="barcode">Barcode Number</Label>
+                  <Input
+                    id="barcode"
+                    value={formData.barcode}
+                    onChange={(e) => handleFormChange('barcode', e.target.value)}
+                    placeholder="Barcode number (8-20 digits)"
+                  />
+                  {validationErrors.barcode && (
+                    <p className="text-sm text-destructive">{validationErrors.barcode[0]}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="points">Points Balance</Label>
+                  <Input
+                    id="points"
+                    value={formData.points_balance}
+                    onChange={(e) => handleFormChange('points_balance', e.target.value)}
+                    placeholder="Current points (numbers only)"
+                  />
+                  {validationErrors.points_balance && (
+                    <p className="text-sm text-destructive">{validationErrors.points_balance[0]}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="expiry">Expiry Date</Label>
+                  <Input
+                    id="expiry"
+                    value={formData.expiry_date}
+                    onChange={(e) => handleFormChange('expiry_date', e.target.value)}
+                    placeholder="YYYY-MM-DD or MM/YY"
+                  />
+                  {validationErrors.expiry_date && (
+                    <p className="text-sm text-destructive">{validationErrors.expiry_date[0]}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Input
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) => handleFormChange('notes', e.target.value)}
+                    placeholder="Additional notes or benefits"
+                  />
+                  {validationErrors.notes && (
+                    <p className="text-sm text-destructive">{validationErrors.notes[0]}</p>
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <Button 
+                    onClick={saveCard} 
+                    className="flex-1" 
+                    disabled={isSaving || !isOnline}
+                  >
+                    {isSaving ? 'Saving...' : editingCard ? "Update Card" : "Save Card"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowAddModal(false)
+                      resetForm()
+                    }}
+                    disabled={isSaving}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+
+                {!isOnline && (
+                  <p className="text-sm text-muted-foreground text-center">
+                    You need to be online to save cards
+                  </p>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
@@ -507,14 +465,15 @@ export const CardsTab: React.FC<CardsTabProps> = ({
                     variant="ghost"
                     onClick={() => {
                       setShowFullscreenCard(null)
-                      setShowScanModal(true)
+                      setActiveTab('scan')
+                      setShowAddModal(true)
                     }}
                     className="w-full flex items-center justify-between py-4 px-4 h-auto rounded-none border-b border-border hover:bg-muted transition-colors"
                     disabled={!isOnline}
                   >
                     <div className="flex items-center gap-3">
                       <QrCode className="h-5 w-5" />
-                      <span className="text-base">Scan Barcode</span>
+                      <span className="text-base">Update Barcode</span>
                     </div>
                     <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
