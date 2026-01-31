@@ -7,6 +7,17 @@ async function generateFavicons() {
   const destDir = path.join(__dirname, '../public');
   const iconsDir = path.join(destDir, 'icons');
 
+  // Check if icons already exist (e.g., on deployment platforms)
+  try {
+    await fs.access(path.join(iconsDir, 'favicon-32x32.png'));
+    await fs.access(path.join(destDir, 'manifest.json'));
+    console.log('✅ Icons already exist, skipping generation');
+    console.log('💡 To regenerate icons, delete the public/icons directory and run this script again');
+    return;
+  } catch {
+    // Icons don't exist, proceed with generation
+  }
+
   // Configuration for Family OS
   const config = {
     path: '/icons/',
@@ -101,7 +112,17 @@ async function generateFavicons() {
 
   } catch (error) {
     console.error('❌ Error generating favicons:', error.message);
-    process.exit(1);
+    // Check if icons exist from a previous build
+    try {
+      await fs.access(path.join(iconsDir, 'favicon-32x32.png'));
+      await fs.access(path.join(destDir, 'manifest.json'));
+      console.log('⚠️ Icon generation failed, but existing icons found - continuing build');
+      return;
+    } catch {
+      console.error('💡 If you\'re deploying, make sure to commit the public/icons directory');
+      console.error('💡 Locally, ensure sharp dependencies are installed: npm install --include=optional sharp');
+      process.exit(1);
+    }
   }
 }
 
