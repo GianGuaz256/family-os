@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { supabase } from '../../lib/supabase'
 import { usePermissions } from '../../hooks/use-permissions'
 import { toast } from 'sonner'
@@ -15,8 +16,24 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { Alert, AlertDescription } from '../ui/alert'
 import { VirtualCard } from '../ui/VirtualCard'
-import { SimpleBarcodeScanner } from '../ui/SimpleBarcodeScanner'
 import { AppHeader } from '../ui/AppHeader'
+
+// Dynamic import to prevent sharp/quagga2 from loading during SSR (causes Vercel build errors)
+const SimpleBarcodeScanner = dynamic(
+  () => import('../ui/SimpleBarcodeScanner').then(mod => mod.SimpleBarcodeScanner),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-12 text-center bg-muted/20">
+        <div className="animate-pulse">
+          <div className="h-16 w-16 mx-auto mb-4 bg-muted-foreground/20 rounded-full" />
+          <div className="h-4 w-32 mx-auto mb-2 bg-muted-foreground/20 rounded" />
+          <div className="h-3 w-48 mx-auto bg-muted-foreground/20 rounded" />
+        </div>
+      </div>
+    )
+  }
+)
 import { AppConfig } from '../../lib/app-types'
 import { validateLoyaltyCard, fieldValidators } from '../../lib/card-validation'
 import { CreditCard, Plus, Trash2, Edit, X, FileText, QrCode, Camera, FileEdit } from 'lucide-react'
