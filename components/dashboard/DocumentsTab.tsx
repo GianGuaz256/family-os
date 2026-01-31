@@ -188,9 +188,16 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
   }
 
   const handleDownload = async (doc: Document) => {
-    if (!doc.file_data) return
+    // file_data is now fetched on-demand by downloadDocument
+    // Check if it's a URL document (no file_data available)
+    if (doc.url && !doc.file_data) {
+      // For URL documents, open in new tab
+      window.open(doc.url, '_blank')
+      return
+    }
 
     try {
+      // downloadDocument will fetch file_data on-demand
       const result = await downloadDocument(doc.id)
       if (result.success && result.data) {
         triggerFileDownload(result.data.blob, result.data.filename)
@@ -235,7 +242,10 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
   }
 
   const getDocumentType = (doc: Document): 'file' | 'url' => {
-    return doc.file_data ? 'file' : 'url'
+    // Since file_data is not loaded initially, check if url exists
+    // If url exists and file_data is null, it's a URL document
+    // Otherwise, if file_size exists, it's a file document
+    return doc.url && !doc.file_size ? 'url' : 'file'
   }
 
   return (
