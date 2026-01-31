@@ -303,8 +303,8 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex flex-col">
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-32">
-        <div className="max-w-4xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="max-w-4xl mx-auto w-full pb-32">
           {/* Header */}
           <div className="mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold truncate">Family Management</h1>
