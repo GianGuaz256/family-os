@@ -665,24 +665,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   ]
 
-  const formatTime = () => {
-    const locale = t('app.locale', { fallback: 'en-US' })
-    return new Date().toLocaleTimeString(locale, {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: locale.startsWith('en')
-    })
-  }
-
-  const formatDate = () => {
-    const locale = t('app.locale', { fallback: 'en-US' })
-    return new Date().toLocaleDateString(locale, {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric'
-    })
-  }
-
   // Get contextual actions based on current view
   const getContextualActions = () => {
     const actions = []
@@ -890,14 +872,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto">
-        {/* Time and Date Widget */}
-        <div className="px-6 py-8 text-center">
-          <div className="text-6xl font-light mb-2">{formatTime()}</div>
-          <div className="text-lg text-muted-foreground">{formatDate()}</div>
-        </div>
-
         {/* Family Selector Widget */}
-        <div className="px-6 mb-8 flex justify-center">
+        <div className="px-6 pt-16 mb-8 flex justify-center">
           <div className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
