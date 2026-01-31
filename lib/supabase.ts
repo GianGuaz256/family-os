@@ -112,18 +112,21 @@ export type Database = {
           id: string
           group_id: string
           user_id: string
+          role: 'owner' | 'member' | 'viewer'
           created_at: string
         }
         Insert: {
           id?: string
           group_id: string
           user_id: string
+          role?: 'owner' | 'member' | 'viewer'
           created_at?: string
         }
         Update: {
           id?: string
           group_id?: string
           user_id?: string
+          role?: 'owner' | 'member' | 'viewer'
           created_at?: string
         }
       }
@@ -133,6 +136,10 @@ export type Database = {
           group_id: string
           title: string
           items: any[]
+          created_by: string | null
+          edit_mode: 'private' | 'public'
+          updated_by: string | null
+          updated_at: string
           created_at: string
         }
         Insert: {
@@ -140,6 +147,10 @@ export type Database = {
           group_id: string
           title: string
           items?: any[]
+          created_by?: string | null
+          edit_mode?: 'private' | 'public'
+          updated_by?: string | null
+          updated_at?: string
           created_at?: string
         }
         Update: {
@@ -147,6 +158,10 @@ export type Database = {
           group_id?: string
           title?: string
           items?: any[]
+          created_by?: string | null
+          edit_mode?: 'private' | 'public'
+          updated_by?: string | null
+          updated_at?: string
           created_at?: string
         }
       }
@@ -161,8 +176,11 @@ export type Database = {
           mime_type: string | null
           file_extension: string | null
           uploaded_by: string | null
+          created_by: string | null
+          edit_mode: 'private' | 'public'
+          updated_by: string | null
+          updated_at: string
           created_at: string
-          updated_at: string | null
         }
         Insert: {
           id?: string
@@ -174,8 +192,11 @@ export type Database = {
           mime_type?: string | null
           file_extension?: string | null
           uploaded_by?: string | null
+          created_by?: string | null
+          edit_mode?: 'private' | 'public'
+          updated_by?: string | null
+          updated_at?: string
           created_at?: string
-          updated_at?: string | null
         }
         Update: {
           id?: string
@@ -187,8 +208,11 @@ export type Database = {
           mime_type?: string | null
           file_extension?: string | null
           uploaded_by?: string | null
+          created_by?: string | null
+          edit_mode?: 'private' | 'public'
+          updated_by?: string | null
+          updated_at?: string
           created_at?: string
-          updated_at?: string | null
         }
       }
       events: {
@@ -204,6 +228,10 @@ export type Database = {
           recurrence_interval?: number
           recurrence_end_date?: string
           description?: string
+          created_by: string | null
+          edit_mode: 'private' | 'public'
+          updated_by: string | null
+          updated_at: string
           created_at: string
         }
         Insert: {
@@ -218,6 +246,10 @@ export type Database = {
           recurrence_interval?: number
           recurrence_end_date?: string
           description?: string
+          created_by?: string | null
+          edit_mode?: 'private' | 'public'
+          updated_by?: string | null
+          updated_at?: string
           created_at?: string
         }
         Update: {
@@ -232,6 +264,10 @@ export type Database = {
           recurrence_interval?: number
           recurrence_end_date?: string
           description?: string
+          created_by?: string | null
+          edit_mode?: 'private' | 'public'
+          updated_by?: string | null
+          updated_at?: string
           created_at?: string
         }
       }
@@ -256,6 +292,10 @@ export type Database = {
           is_active: boolean
           description?: string
           website_url?: string
+          created_by: string | null
+          edit_mode: 'private' | 'public'
+          updated_by: string | null
+          updated_at: string
           created_at: string
         }
         Insert: {
@@ -278,6 +318,10 @@ export type Database = {
           is_active?: boolean
           description?: string
           website_url?: string
+          created_by?: string | null
+          edit_mode?: 'private' | 'public'
+          updated_by?: string | null
+          updated_at?: string
           created_at?: string
         }
         Update: {
@@ -300,6 +344,10 @@ export type Database = {
           is_active?: boolean
           description?: string
           website_url?: string
+          created_by?: string | null
+          edit_mode?: 'private' | 'public'
+          updated_by?: string | null
+          updated_at?: string
           created_at?: string
         }
       }
@@ -314,6 +362,10 @@ export type Database = {
           points_balance: string | null
           expiry_date: string | null
           notes: string | null
+          created_by: string | null
+          edit_mode: 'private' | 'public'
+          updated_by: string | null
+          updated_at: string
           created_at: string
         }
         Insert: {
@@ -326,6 +378,10 @@ export type Database = {
           points_balance?: string | null
           expiry_date?: string | null
           notes?: string | null
+          created_by?: string | null
+          edit_mode?: 'private' | 'public'
+          updated_by?: string | null
+          updated_at?: string
           created_at?: string
         }
         Update: {
@@ -338,6 +394,10 @@ export type Database = {
           points_balance?: string | null
           expiry_date?: string | null
           notes?: string | null
+          created_by?: string | null
+          edit_mode?: 'private' | 'public'
+          updated_by?: string | null
+          updated_at?: string
           created_at?: string
         }
       }
@@ -349,8 +409,10 @@ export type Database = {
           content: string
           is_important: boolean
           created_by: string
-          created_at: string
+          edit_mode: 'private' | 'public'
+          updated_by: string | null
           updated_at: string
+          created_at: string
         }
         Insert: {
           id?: string
@@ -359,8 +421,10 @@ export type Database = {
           content: string
           is_important?: boolean
           created_by: string
-          created_at?: string
+          edit_mode?: 'private' | 'public'
+          updated_by?: string | null
           updated_at?: string
+          created_at?: string
         }
         Update: {
           id?: string
@@ -369,8 +433,10 @@ export type Database = {
           content?: string
           is_important?: boolean
           created_by?: string
-          created_at?: string
+          edit_mode?: 'private' | 'public'
+          updated_by?: string | null
           updated_at?: string
+          created_at?: string
         }
       }
       user_preferences: {

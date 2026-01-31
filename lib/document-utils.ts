@@ -75,6 +75,7 @@ export interface DocumentUploadData {
   groupId: string
   file: File
   uploadedBy: string
+  editMode?: 'private' | 'public'
   onProgress?: (progress: number) => void
 }
 
@@ -282,7 +283,7 @@ export const createDownloadUrl = (data: Uint8Array, mimeType: string): string =>
  */
 export const uploadDocument = async (uploadData: DocumentUploadData): Promise<DatabaseResult<string>> => {
   try {
-    const { onProgress } = uploadData
+    const { onProgress, editMode = 'public' } = uploadData
     
     // Step 1: Enhanced file validation with magic number verification (0-10% progress)
     onProgress?.(0)
@@ -318,6 +319,8 @@ export const uploadDocument = async (uploadData: DocumentUploadData): Promise<Da
         mime_type: uploadData.file.type,
         file_extension: validation.fileInfo?.extension,
         uploaded_by: uploadData.uploadedBy,
+        created_by: uploadData.uploadedBy,
+        edit_mode: editMode,
         url: null // Explicitly set to null since we're storing file data
       })
       .select('id')

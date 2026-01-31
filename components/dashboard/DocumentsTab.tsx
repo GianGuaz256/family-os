@@ -32,8 +32,11 @@ import {
   formatFileSize,
   getFileTypeIcon,
 } from '../../lib/document-utils'
+import { usePermissions } from '../../hooks/use-permissions'
+import { LockToggle, LockIcon } from '../ui/LockToggle'
+import { ResourceBase } from '@/lib/permissions'
 
-interface Document {
+interface Document extends ResourceBase {
   id: string
   name: string
   url: string | null
@@ -43,7 +46,6 @@ interface Document {
   file_extension: string | null
   uploaded_by: string | null
   created_at: string
-  updated_at: string | null
   uploader_profile?: {
     email: string | null
     display_name: string | null
@@ -79,6 +81,10 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [editMode, setEditMode] = useState<'private' | 'public'>('public')
+
+  // Get user permissions
+  const permissions = usePermissions({ groupId, userId: currentUserId })
 
   // Listen for custom events from BottomActions
   useEffect(() => {
@@ -102,6 +108,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
     setUploadError(null)
     setUploadProgress(0)
     setUploadMode('file')
+    setEditMode('public')
   }
 
   const handleFileSelect = (file: File, fileName: string) => {
@@ -119,6 +126,12 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
   const addFileDocument = async () => {
     if (!selectedFile || !customFileName.trim() || !isOnline) return
 
+    // Check create permission
+    if (!permissions.canCreate) {
+      setUploadError('You do not have permission to upload documents')
+      return
+    }
+
     setIsUploading(true)
     setUploadProgress(0)
     setUploadError(null)
@@ -129,6 +142,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
         groupId,
         file: selectedFile,
         uploadedBy: currentUserId,
+        editMode,
         onProgress: (progress) => {
           setUploadProgress(progress)
         }
@@ -157,6 +171,12 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
   const addUrlDocument = async () => {
     if (!newDocName.trim() || !newDocUrl.trim() || !isOnline) return
 
+    // Check create permission
+    if (!permissions.canCreate) {
+      setUploadError('You do not have permission to add documents')
+      return
+    }
+
     setIsUploading(true)
     setUploadError(null)
 
@@ -167,7 +187,9 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
           group_id: groupId,
           name: newDocName,
           url: newDocUrl,
+          created_by: currentUserId,
           uploaded_by: currentUserId,
+          edit_mode: editMode,
           file_data: null,
           file_size: null,
           mime_type: null,
@@ -281,7 +303,12 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
       ) : (
         <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {documents.map((doc) => (
-            <Card key={doc.id} className="group hover:shadow-md transition-shadow">
+            <Card key={doc.id} className="group hover:shadow-md transition-shadow relative">
+              {doc.edit_mode === 'private' && (
+                <div className="absolute top-2 right-2 z-10">
+                  <LockIcon editMode="private" size={16} />
+                </div>
+              )}
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-start justify-between mb-3 sm:mb-4">
                   <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
@@ -405,6 +432,21 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
               
               {selectedFile && (
                 <div className="flex flex-col gap-3 pt-2">
+                  {/* Edit Mode Toggle - Only for owners */}
+                  {permissions.canChangeEditMode && (
+                    <div className="pt-2 border-t">
+                      <LockToggle
+                        editMode={editMode}
+                        onChange={(mode) => setEditMode(mode)}
+                        disabled={!isOnline}
+                        label={editMode === 'private' ? 'Private (Only you can edit)' : 'Public (Members can edit)'}
+                        showLabel={true}
+                        tooltipText={editMode === 'private' 
+                          ? 'This document is private. Only the owner can modify it.' 
+                          : 'This document is public. Family members can modify it.'}
+                      />
+                    </div>
+                  )}
                   <Button 
                     onClick={addFileDocument} 
                     className="w-full h-12 text-sm font-medium"
@@ -462,6 +504,22 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription className="text-sm">{uploadError}</AlertDescription>
                 </Alert>
+              )}
+
+              {/* Edit Mode Toggle - Only for owners */}
+              {permissions.canChangeEditMode && (
+                <div className="pt-2 border-t">
+                  <LockToggle
+                    editMode={editMode}
+                    onChange={(mode) => setEditMode(mode)}
+                    disabled={!isOnline}
+                    label={editMode === 'private' ? 'Private (Only you can edit)' : 'Public (Members can edit)'}
+                    showLabel={true}
+                    tooltipText={editMode === 'private' 
+                      ? 'This document is private. Only the owner can modify it.' 
+                      : 'This document is public. Family members can modify it.'}
+                  />
+                </div>
               )}
 
               <div className="flex flex-col gap-3 pt-2">

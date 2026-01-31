@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
+import { usePermissions } from '../../hooks/use-permissions'
 import { BottomActions } from '../ui/BottomActions'
 import { PullToRefreshIndicator } from '../ui/PullToRefreshIndicator'
 import { ListsTab } from './ListsTab'
@@ -76,6 +77,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
   isOnline
 }) => {
   const { t } = useTranslation()
+  
+  // Get permissions for current user in this group
+  const { isViewer } = usePermissions({
+    groupId: group.id,
+    userId: user.id
+  })
+  
   const [currentView, setCurrentView] = useState<AppView>('home')
   const [lists, setLists] = useState<any[]>([])
   const [documents, setDocuments] = useState<any[]>([])
@@ -697,6 +705,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // Get contextual actions based on current view
   const getContextualActions = () => {
+    // Viewers should not see any create/add actions
+    if (isViewer) {
+      return []
+    }
+    
     const actions = []
     
     switch (currentView) {
@@ -808,6 +821,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               groupId={group.id} 
               onUpdate={fetchData}
               isOnline={isOnline}
+              currentUserId={user.id}
               appConfig={apps.find(app => app.id === 'lists')}
             />
           )}
@@ -828,13 +842,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
               groupId={group.id} 
               onUpdate={fetchData}
               isOnline={isOnline}
+              currentUserId={user.id}
               appConfig={apps.find(app => app.id === 'events')}
             />
           )}
           {currentView === 'cards' && (
-            <CardsTab 
-              cards={cards} 
-              groupId={group.id} 
+            <CardsTab
+              cards={cards}
+              groupId={group.id}
+              userId={user.id}
               onUpdate={fetchData}
               isOnline={isOnline}
               appConfig={apps.find(app => app.id === 'cards')}
