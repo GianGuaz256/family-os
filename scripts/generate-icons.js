@@ -1,4 +1,3 @@
-const { favicons } = require('favicons');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -16,6 +15,18 @@ async function generateFavicons() {
     return;
   } catch {
     // Icons don't exist, proceed with generation
+    console.log('🎨 Icons not found, will generate them...');
+  }
+
+  // Lazy-load favicons only when we actually need to generate icons
+  let favicons;
+  try {
+    favicons = require('favicons').favicons;
+  } catch (error) {
+    console.error('❌ Cannot load favicons module:', error.message);
+    console.error('💡 This is expected on deployment platforms like Vercel');
+    console.error('💡 Make sure the public/icons directory is committed to git');
+    process.exit(1);
   }
 
   // Configuration for Family OS
