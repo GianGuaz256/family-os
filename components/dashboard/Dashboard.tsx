@@ -105,6 +105,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const fetchTimeoutRef = useRef<NodeJS.Timeout>()
   const lastFetchRef = useRef<number>(0)
   const DEBOUNCE_DELAY = 1000 // 1 second debounce
+  
+  // Ref to track current view for real-time subscriptions (avoids closure issues)
+  const currentViewRef = useRef<AppView>(currentView)
+  // Ref to track previous view to detect navigation back to home
+  const previousViewRef = useRef<AppView>(currentView)
+  
+  // Update currentViewRef when currentView changes
+  useEffect(() => {
+    currentViewRef.current = currentView
+  }, [currentView])
 
   // Fetch dashboard counts only (for home view) - lightweight queries
   const fetchDashboardCounts = useCallback(async () => {
@@ -410,7 +420,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [user.id, isOnline])
 
-  // Optimized realtime subscriptions - update counts on home, full data when tab is open
+  // Optimized realtime subscriptions - update counts on home, full data when tab is active
   const setupRealtimeSubscriptions = useCallback(() => {
     // Remove any existing channel with the same name first
     const channelName = `optimized-family-updates-${group.id}`
@@ -421,13 +431,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
     const channel = supabase
       .channel(channelName)
-      // Update counts on home view, full data if tab is loaded
+      // Update counts on home view, full data when tab is active
+      // Use currentViewRef to always get the latest view value
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'lists', filter: `group_id=eq.${group.id}` },
         () => {
-          if (currentView === 'home') {
+          const view = currentViewRef.current
+          if (view === 'home') {
             fetchDashboardCounts()
-          } else if (loadedTabs.has('lists')) {
+          } else if (view === 'lists') {
             fetchSpecificData('lists')
           }
         }
@@ -435,9 +447,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'documents', filter: `group_id=eq.${group.id}` },
         () => {
-          if (currentView === 'home') {
+          const view = currentViewRef.current
+          if (view === 'home') {
             fetchDashboardCounts()
-          } else if (loadedTabs.has('documents')) {
+          } else if (view === 'documents') {
             fetchSpecificData('documents')
           }
         }
@@ -445,9 +458,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'events', filter: `group_id=eq.${group.id}` },
         () => {
-          if (currentView === 'home') {
+          const view = currentViewRef.current
+          if (view === 'home') {
             fetchDashboardCounts()
-          } else if (loadedTabs.has('events')) {
+          } else if (view === 'events') {
             fetchSpecificData('events')
           }
         }
@@ -455,9 +469,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'cards', filter: `group_id=eq.${group.id}` },
         () => {
-          if (currentView === 'home') {
+          const view = currentViewRef.current
+          if (view === 'home') {
             fetchDashboardCounts()
-          } else if (loadedTabs.has('cards')) {
+          } else if (view === 'cards') {
             fetchSpecificData('cards')
           }
         }
@@ -465,9 +480,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'subscriptions', filter: `group_id=eq.${group.id}` },
         () => {
-          if (currentView === 'home') {
+          const view = currentViewRef.current
+          if (view === 'home') {
             fetchDashboardCounts()
-          } else if (loadedTabs.has('subscriptions')) {
+          } else if (view === 'subscriptions') {
             fetchSpecificData('subscriptions')
           }
         }
@@ -475,9 +491,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'notes', filter: `group_id=eq.${group.id}` },
         () => {
-          if (currentView === 'home') {
+          const view = currentViewRef.current
+          if (view === 'home') {
             fetchDashboardCounts()
-          } else if (loadedTabs.has('notes')) {
+          } else if (view === 'notes') {
             fetchSpecificData('notes')
           }
         }
@@ -487,7 +504,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [group.id, currentView, loadedTabs, fetchDashboardCounts, fetchSpecificData])
+  }, [group.id, fetchDashboardCounts, fetchSpecificData])
 
   // Pull-to-refresh functionality - only for home view
   const handleRefresh = useCallback(async () => {
@@ -557,16 +574,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [group.id, isOnline, fetchDashboardCounts, fetchAllGroups, setupRealtimeSubscriptions])
 
-  // Lazy load tab data when view changes
+  // Always refetch tab data when view changes (to see updates from other users)
   useEffect(() => {
     if (currentView !== 'home' && currentView !== 'settings' && isOnline) {
-      // Check if tab is already loaded before fetching
-      const isLoaded = loadedTabs.has(currentView)
-      if (!isLoaded) {
-        fetchTabData(currentView)
-      }
+      // Always fetch data when entering a tab to ensure we have the latest data
+      fetchTabData(currentView)
     }
-  }, [currentView, isOnline, loadedTabs, fetchTabData])
+  }, [currentView, isOnline, fetchTabData])
+
+  // Refetch all counters when navigating back to home view
+  useEffect(() => {
+    // Check if we're navigating TO home from another view
+    const previousView = previousViewRef.current
+    const isNavigatingToHome = currentView === 'home' && previousView !== 'home'
+    
+    if (isNavigatingToHome && isOnline) {
+      // Refresh all counters (lists, documents, events, cards, subscriptions, notes)
+      // when navigating back to dashboard
+      fetchDashboardCounts()
+    }
+    
+    // Update previous view after checking (for next navigation)
+    previousViewRef.current = currentView
+  }, [currentView, isOnline, fetchDashboardCounts])
 
   const handleGroupSwitch = async (newGroup: FamilyGroup) => {
     setIsSwitchingFamily(true)
