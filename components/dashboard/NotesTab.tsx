@@ -6,6 +6,8 @@ import { Label } from '../ui/label'
 import { Textarea } from '../ui/textarea'
 import { Card } from '../ui/card'
 import { AppHeader } from '../ui/AppHeader'
+import { usePermissions } from '../../hooks/use-permissions'
+import { toast } from 'sonner'
 import {
   Dialog,
   DialogContent,
@@ -26,7 +28,9 @@ import {
   Trash2, 
   Edit3,
   Eye,
-  Calendar
+  Calendar,
+  Lock,
+  Unlock
 } from 'lucide-react'
 
 interface Note {
@@ -38,6 +42,8 @@ interface Note {
   created_by: string
   created_at: string
   updated_at: string
+  edit_mode: 'private' | 'public'
+  updated_by: string | null
   creator_profile?: {
     email: string | null
     display_name: string | null
@@ -64,6 +70,20 @@ export const NotesTab: React.FC<NotesTabProps> = ({
   isGroupOwner,
   appConfig
 }) => {
+  // Get permissions for current user
+  const { 
+    canCreate, 
+    canModify, 
+    canDelete, 
+    isOwner, 
+    isMember, 
+    isViewer,
+    role
+  } = usePermissions({
+    groupId,
+    userId: currentUserId
+  })
+  
   // Create note modal states
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newNoteTitle, setNewNoteTitle] = useState('')
@@ -233,6 +253,14 @@ export const NotesTab: React.FC<NotesTabProps> = ({
   const createNote = async () => {
     if (!newNoteTitle.trim() || !newNoteContent.trim() || !isOnline) return
 
+    // Check permissions
+    if (!canCreate) {
+      toast.error('Permission denied', {
+        description: 'You do not have permission to create notes.'
+      })
+      return
+    }
+
     setIsLoading(true)
     try {
       const { error } = await supabase
@@ -242,11 +270,21 @@ export const NotesTab: React.FC<NotesTabProps> = ({
           title: newNoteTitle.trim(),
           content: newNoteContent.trim(),
           is_important: false,
-          created_by: currentUserId
+          created_by: currentUserId,
+          edit_mode: 'public' // Set default edit mode
         }])
 
-      if (error) throw error
+      if (error) {
+        console.error('Error creating note:', error)
+        toast.error('Failed to create note', {
+          description: error.message || 'An error occurred while creating the note.'
+        })
+        throw error
+      }
       
+      toast.success('Note created', {
+        description: 'Your note has been created successfully.'
+      })
       setShowCreateModal(false)
       resetCreateForm()
       onUpdate()
@@ -260,6 +298,15 @@ export const NotesTab: React.FC<NotesTabProps> = ({
   const updateNote = async () => {
     if (!activeNote || !editTitle.trim() || !editContent.trim() || !isOnline) return
 
+    // Check permissions
+    const modifyCheck = canModify(activeNote)
+    if (!modifyCheck.allowed) {
+      toast.error('Permission denied', {
+        description: modifyCheck.reason || 'You do not have permission to edit this note.'
+      })
+      return
+    }
+
     setIsLoading(true)
     try {
       const { error } = await supabase
@@ -270,8 +317,17 @@ export const NotesTab: React.FC<NotesTabProps> = ({
         })
         .eq('id', activeNote.id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Error updating note:', error)
+        toast.error('Failed to update note', {
+          description: error.message || 'An error occurred while updating the note.'
+        })
+        throw error
+      }
       
+      toast.success('Note updated', {
+        description: 'Your changes have been saved successfully.'
+      })
       closeSheet()
       onUpdate()
     } catch (error) {
@@ -282,7 +338,21 @@ export const NotesTab: React.FC<NotesTabProps> = ({
   }
 
   const deleteNote = async (noteId: string) => {
-    if (!isOnline || !confirm('Are you sure you want to delete this note?')) return
+    if (!isOnline) return
+
+    const note = notes.find(n => n.id === noteId)
+    if (!note) return
+
+    // Check permissions
+    const deleteCheck = canDelete(note)
+    if (!deleteCheck.allowed) {
+      toast.error('Permission denied', {
+        description: deleteCheck.reason || 'You do not have permission to delete this note.'
+      })
+      return
+    }
+
+    if (!confirm('Are you sure you want to delete this note?')) return
 
     try {
       const { error } = await supabase
@@ -290,7 +360,17 @@ export const NotesTab: React.FC<NotesTabProps> = ({
         .delete()
         .eq('id', noteId)
 
-      if (error) throw error
+      if (error) {
+        console.error('Error deleting note:', error)
+        toast.error('Failed to delete note', {
+          description: error.message || 'An error occurred while deleting the note.'
+        })
+        throw error
+      }
+      
+      toast.success('Note deleted', {
+        description: 'The note has been deleted successfully.'
+      })
       closeSheet()
       onUpdate()
     } catch (error) {
@@ -320,10 +400,43 @@ export const NotesTab: React.FC<NotesTabProps> = ({
 
   const handleToggleImportant = (note: Note, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
-    if (!isGroupOwner || !isOnline) return
+    if (!isOwner || !isOnline) return
     
     setNoteToToggle(note)
     setShowConfirmImportant(true)
+  }
+
+  const handleToggleLock = async (note: Note) => {
+    if (!isOwner || !isOnline) return
+
+    const newEditMode = note.edit_mode === 'private' ? 'public' : 'private'
+    
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .update({ edit_mode: newEditMode })
+        .eq('id', note.id)
+
+      if (error) {
+        console.error('Error toggling lock:', error)
+        toast.error('Failed to update note', {
+          description: error.message || 'An error occurred while updating the note.'
+        })
+        throw error
+      }
+
+      toast.success(
+        newEditMode === 'private' ? 'Note locked' : 'Note unlocked',
+        {
+          description: newEditMode === 'private'
+            ? 'Only you can edit this note now.'
+            : 'All members can now edit this note.'
+        }
+      )
+      onUpdate()
+    } catch (error) {
+      console.error('Error toggling lock:', error)
+    }
   }
 
   const confirmToggleImportant = async () => {
@@ -339,7 +452,13 @@ export const NotesTab: React.FC<NotesTabProps> = ({
           .eq('is_important', true)
           .neq('id', noteToToggle.id)
 
-        if (unmarkError) throw unmarkError
+        if (unmarkError) {
+          console.error('Error unmarking notes:', unmarkError)
+          toast.error('Failed to update note', {
+            description: unmarkError.message || 'An error occurred.'
+          })
+          throw unmarkError
+        }
       }
 
       // Now toggle the current note's importance
@@ -348,7 +467,22 @@ export const NotesTab: React.FC<NotesTabProps> = ({
         .update({ is_important: !noteToToggle.is_important })
         .eq('id', noteToToggle.id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Error toggling importance:', error)
+        toast.error('Failed to update note', {
+          description: error.message || 'An error occurred while updating the note.'
+        })
+        throw error
+      }
+      
+      toast.success(
+        noteToToggle.is_important ? 'Removed from important' : 'Marked as important',
+        {
+          description: noteToToggle.is_important 
+            ? 'Note is no longer marked as important.'
+            : 'This note is now marked as important for the family.'
+        }
+      )
       onUpdate()
       setShowConfirmImportant(false)
       setNoteToToggle(null)
@@ -509,8 +643,8 @@ export const NotesTab: React.FC<NotesTabProps> = ({
               <SheetHeader className="px-4 sm:px-6 pt-2 sm:pt-4 pb-3 sm:pb-4 border-b select-none" style={{ touchAction: 'pan-y' }}>
                 {/* Icons row on top */}
                 <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
-                  {/* View/Edit toggle */}
-                  {activeNote.created_by === currentUserId && (
+                  {/* View/Edit toggle - only show if user can modify */}
+                  {activeNote && canModify(activeNote).allowed && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -532,8 +666,26 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                     </Button>
                   )}
                   
+                  {/* Lock/Unlock toggle - only show for owners */}
+                  {activeNote && isOwner && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleLock(activeNote)}
+                      disabled={!isOnline}
+                      className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                      title={activeNote.edit_mode === 'private' ? 'Unlock for members' : 'Lock for owner only'}
+                    >
+                      {activeNote.edit_mode === 'private' ? (
+                        <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      ) : (
+                        <Unlock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      )}
+                    </Button>
+                  )}
+                  
                   {/* Star toggle (owner only) */}
-                  {isGroupOwner && (
+                  {activeNote && isOwner && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -548,8 +700,8 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                     </Button>
                   )}
                   
-                  {/* Delete button (owner only) */}
-                  {activeNote.created_by === currentUserId && (
+                  {/* Delete button - only show if user can delete */}
+                  {activeNote && canDelete(activeNote).allowed && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -560,6 +712,13 @@ export const NotesTab: React.FC<NotesTabProps> = ({
                     >
                       <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </Button>
+                  )}
+                  
+                  {/* Lock indicator for viewers/members */}
+                  {activeNote && activeNote.edit_mode === 'private' && !isOwner && (
+                    <div className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center text-muted-foreground" title="Locked by owner">
+                      <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    </div>
                   )}
                   
                   {/* Date info */}

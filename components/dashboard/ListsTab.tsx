@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { usePermissions } from '../../hooks/use-permissions'
+import { toast } from 'sonner'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -27,6 +29,9 @@ interface List {
   title: string
   items: ListItem[]
   created_at: string
+  created_by: string
+  edit_mode: 'private' | 'public'
+  updated_by?: string | null
 }
 
 interface ListsTabProps {
@@ -35,6 +40,7 @@ interface ListsTabProps {
   onUpdate: () => void
   isOnline: boolean
   appConfig?: AppConfig
+  currentUserId: string
 }
 
 export const ListsTab: React.FC<ListsTabProps> = ({
@@ -42,8 +48,22 @@ export const ListsTab: React.FC<ListsTabProps> = ({
   groupId,
   onUpdate,
   isOnline,
-  appConfig
+  appConfig,
+  currentUserId
 }) => {
+  // Get permissions for current user
+  const { 
+    canCreate, 
+    canModify, 
+    canDelete, 
+    isOwner, 
+    isMember, 
+    isViewer 
+  } = usePermissions({
+    groupId,
+    userId: currentUserId
+  })
+  
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newListTitle, setNewListTitle] = useState('')
   const [newItems, setNewItems] = useState<{[listId: string]: string}>({})
@@ -65,17 +85,36 @@ export const ListsTab: React.FC<ListsTabProps> = ({
   const createList = async () => {
     if (!newListTitle.trim() || !isOnline) return
 
+    // Check permissions
+    if (!canCreate) {
+      toast.error('Permission denied', {
+        description: 'You do not have permission to create lists.'
+      })
+      return
+    }
+
     try {
       const { error } = await supabase
         .from('lists')
         .insert([{
           group_id: groupId,
           title: newListTitle,
-          items: []
+          items: [],
+          created_by: currentUserId,
+          edit_mode: 'public'
         }])
 
-      if (error) throw error
+      if (error) {
+        console.error('Error creating list:', error)
+        toast.error('Failed to create list', {
+          description: error.message || 'An error occurred while creating the list.'
+        })
+        throw error
+      }
       
+      toast.success('List created', {
+        description: 'Your list has been created successfully.'
+      })
       setNewListTitle('')
       setShowCreateModal(false)
       onUpdate()
@@ -151,7 +190,25 @@ export const ListsTab: React.FC<ListsTabProps> = ({
   }
 
   const deleteList = async (listId: string) => {
-    if (!isOnline || !confirm('Are you sure you want to delete this list?')) return
+    if (!isOnline) return
+    
+    // Find list to check permissions
+    const list = lists.find(l => l.id === listId)
+    if (!list) {
+      toast.error('List not found')
+      return
+    }
+
+    // Check permissions
+    const deleteCheck = canDelete(list)
+    if (!deleteCheck.allowed) {
+      toast.error('Permission denied', {
+        description: deleteCheck.reason || 'You do not have permission to delete this list.'
+      })
+      return
+    }
+
+    if (!confirm('Are you sure you want to delete this list?')) return
 
     try {
       const { error } = await supabase
@@ -159,7 +216,17 @@ export const ListsTab: React.FC<ListsTabProps> = ({
         .delete()
         .eq('id', listId)
 
-      if (error) throw error
+      if (error) {
+        console.error('Error deleting list:', error)
+        toast.error('Failed to delete list', {
+          description: error.message || 'An error occurred while deleting the list.'
+        })
+        throw error
+      }
+      
+      toast.success('List deleted', {
+        description: 'The list has been deleted successfully.'
+      })
       onUpdate()
     } catch (error) {
       console.error('Error deleting list:', error)
@@ -202,15 +269,17 @@ export const ListsTab: React.FC<ListsTabProps> = ({
             <Card key={list.id} className="h-fit">
               <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <h3 className="text-lg font-semibold truncate">{list.title}</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteList(list.id)}
-                  disabled={!isOnline}
-                  className="text-destructive hover:text-destructive/90 px-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {canDelete(list).allowed && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteList(list.id)}
+                    disabled={!isOnline}
+                    className="text-destructive hover:text-destructive/90 px-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
@@ -219,7 +288,7 @@ export const ListsTab: React.FC<ListsTabProps> = ({
                       <Checkbox
                         checked={item.completed}
                         onCheckedChange={() => toggleItem(list.id, item.id, list.items)}
-                        disabled={!isOnline}
+                        disabled={!isOnline || !canModify(list).allowed}
                       />
                       <span className={`flex-1 text-sm ${
                         item.completed 
@@ -228,15 +297,17 @@ export const ListsTab: React.FC<ListsTabProps> = ({
                       }`}>
                         {item.text}
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteItem(list.id, item.id, list.items)}
-                        disabled={!isOnline}
-                        className="opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive/90 px-1 py-1"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      {canModify(list).allowed && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteItem(list.id, item.id, list.items)}
+                          disabled={!isOnline}
+                          className="opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive/90 px-1 py-1"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                   {list.items.length === 0 && (
@@ -244,30 +315,32 @@ export const ListsTab: React.FC<ListsTabProps> = ({
                   )}
                 </div>
                 
-                <div className="flex space-x-2">
-                  <Input
-                    placeholder="Add new item..."
-                    value={newItems[list.id] || ''}
-                    onChange={(e) => setNewItems(prev => ({ 
-                      ...prev, 
-                      [list.id]: e.target.value 
-                    }))}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        addItemToList(list.id, list.items)
-                      }
-                    }}
-                    disabled={!isOnline}
-                    className="text-sm"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={() => addItemToList(list.id, list.items)}
-                    disabled={!isOnline || !newItems[list.id]?.trim()}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                {canModify(list).allowed && (
+                  <div className="flex space-x-2">
+                    <Input
+                      placeholder="Add new item..."
+                      value={newItems[list.id] || ''}
+                      onChange={(e) => setNewItems(prev => ({ 
+                        ...prev, 
+                        [list.id]: e.target.value 
+                      }))}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          addItemToList(list.id, list.items)
+                        }
+                      }}
+                      disabled={!isOnline}
+                      className="text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => addItemToList(list.id, list.items)}
+                      disabled={!isOnline || !newItems[list.id]?.trim()}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

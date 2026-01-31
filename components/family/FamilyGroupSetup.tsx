@@ -111,7 +111,8 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
         .from('group_members')
         .insert([{
           group_id: group.id,
-          user_id: user.id
+          user_id: user.id,
+          role: 'owner' // Set creator as owner
         }])
 
       if (memberError) throw memberError
@@ -143,7 +144,8 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
         .from('group_members')
         .insert([{
           group_id: group.id,
-          user_id: user.id
+          user_id: user.id,
+          role: 'member' // Set default role as member when joining via code
         }])
 
       if (memberError) throw memberError

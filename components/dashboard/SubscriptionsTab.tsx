@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { renderProfileAvatar, ProfileData } from '../../lib/avatar-utils'
+import { usePermissions } from '../../hooks/use-permissions'
+import { toast } from 'sonner'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -73,6 +75,9 @@ interface Subscription {
   description?: string
   website_url?: string
   created_at: string
+  created_by: string
+  edit_mode: 'private' | 'public'
+  updated_by?: string | null
 }
 
 interface GroupMember {
@@ -101,6 +106,19 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
   appConfig
 }) => {
   const { t } = useTranslation()
+  
+  // Get permissions for current user
+  const { 
+    canCreate, 
+    canModify, 
+    canDelete, 
+    isOwner, 
+    isMember, 
+    isViewer 
+  } = usePermissions({
+    groupId,
+    userId: currentUser.id
+  })
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null)
@@ -295,6 +313,14 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
   const addSubscription = async () => {
     if (!formData.title.trim() || !formData.cost || !formData.start_date || !isOnline) return
 
+    // Check permissions
+    if (!canCreate) {
+      toast.error('Permission denied', {
+        description: 'You do not have permission to create subscriptions.'
+      })
+      return
+    }
+
     setIsLoading(true)
     try {
       const subscriptionData = {
@@ -315,15 +341,26 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
         notify_days_before: formData.notify_days_before,
         is_active: true,
         description: formData.description || null,
-        website_url: formData.website_url || null
+        website_url: formData.website_url || null,
+        created_by: currentUser.id,
+        edit_mode: 'public' as const
       }
 
       const { error } = await supabase
         .from('subscriptions')
         .insert([subscriptionData])
 
-      if (error) throw error
+      if (error) {
+        console.error('Error adding subscription:', error)
+        toast.error('Failed to create subscription', {
+          description: error.message || 'An error occurred while creating the subscription.'
+        })
+        throw error
+      }
       
+      toast.success('Subscription created', {
+        description: 'Your subscription has been added successfully.'
+      })
       resetForm()
       setShowCreateModal(false)
       onUpdate()
@@ -336,6 +373,15 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
 
   const updateSubscription = async () => {
     if (!editingSubscription || !formData.title.trim() || !formData.cost || !formData.start_date || !isOnline) return
+
+    // Check permissions
+    const modifyCheck = canModify(editingSubscription)
+    if (!modifyCheck.allowed) {
+      toast.error('Permission denied', {
+        description: modifyCheck.reason || 'You do not have permission to edit this subscription.'
+      })
+      return
+    }
 
     setIsLoading(true)
     try {
@@ -363,8 +409,17 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
         .update(subscriptionData)
         .eq('id', editingSubscription.id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Error updating subscription:', error)
+        toast.error('Failed to update subscription', {
+          description: error.message || 'An error occurred while updating the subscription.'
+        })
+        throw error
+      }
       
+      toast.success('Subscription updated', {
+        description: 'Your changes have been saved successfully.'
+      })
       resetForm()
       setShowEditModal(false)
       onUpdate()
@@ -376,7 +431,25 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
   }
 
   const deleteSubscription = async (subscriptionId: string) => {
-    if (!isOnline || !confirm('Are you sure you want to delete this subscription?')) return
+    if (!isOnline) return
+    
+    // Find subscription to check permissions
+    const subscription = subscriptions.find(s => s.id === subscriptionId)
+    if (!subscription) {
+      toast.error('Subscription not found')
+      return
+    }
+
+    // Check permissions
+    const deleteCheck = canDelete(subscription)
+    if (!deleteCheck.allowed) {
+      toast.error('Permission denied', {
+        description: deleteCheck.reason || 'You do not have permission to delete this subscription.'
+      })
+      return
+    }
+
+    if (!confirm('Are you sure you want to delete this subscription?')) return
 
     try {
       const { error } = await supabase
@@ -384,7 +457,17 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
         .delete()
         .eq('id', subscriptionId)
 
-      if (error) throw error
+      if (error) {
+        console.error('Error deleting subscription:', error)
+        toast.error('Failed to delete subscription', {
+          description: error.message || 'An error occurred while deleting the subscription.'
+        })
+        throw error
+      }
+      
+      toast.success('Subscription deleted', {
+        description: 'The subscription has been deleted successfully.'
+      })
       onUpdate()
     } catch (error) {
       console.error('Error deleting subscription:', error)
@@ -721,24 +804,28 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
                             >
                               {subscription.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEditModal(subscription)}
-                              disabled={!isOnline || !subscription.is_active}
-                              title={!subscription.is_active ? 'Activate subscription to edit' : 'Edit subscription'}
-                            >
-                              <Edit className={`h-4 w-4 ${!subscription.is_active ? 'opacity-50' : ''}`} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => deleteSubscription(subscription.id)}
-                              disabled={!isOnline}
-                              title="Delete subscription"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {canModify(subscription).allowed && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditModal(subscription)}
+                                disabled={!isOnline || !subscription.is_active}
+                                title={!subscription.is_active ? 'Activate subscription to edit' : 'Edit subscription'}
+                              >
+                                <Edit className={`h-4 w-4 ${!subscription.is_active ? 'opacity-50' : ''}`} />
+                              </Button>
+                            )}
+                            {canDelete(subscription).allowed && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteSubscription(subscription.id)}
+                                disabled={!isOnline}
+                                title="Delete subscription"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
 

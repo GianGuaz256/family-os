@@ -6,6 +6,7 @@ import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Alert, AlertDescription } from '../ui/alert'
 import { Avatar, AvatarFallback } from '../ui/avatar'
+import { toast } from 'sonner'
 import { 
   Dialog,
   DialogContent,
@@ -36,6 +37,8 @@ import {
 } from 'lucide-react'
 import { IconSelector } from '../ui/IconSelector'
 import { BottomActions } from '../ui/BottomActions'
+import { RoleSelector, RoleBadge } from '../ui/RoleSelector'
+import { FamilyRole } from '@/lib/permissions'
 
 interface FamilyGroup {
   id: string
@@ -49,6 +52,7 @@ interface FamilyGroup {
 interface FamilyMember {
   id: string
   user_id: string
+  role: FamilyRole
   created_at: string
   email?: string | null
   display_name?: string | null
@@ -81,6 +85,7 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
   const [showRemoveMemberDialog, setShowRemoveMemberDialog] = useState(false)
   const [memberToRemove, setMemberToRemove] = useState<FamilyMember | null>(null)
   const [isRemovingMember, setIsRemovingMember] = useState(false)
+  const [changingRoleFor, setChangingRoleFor] = useState<string | null>(null)
 
   useEffect(() => {
     if (isOnline) {
@@ -91,10 +96,10 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
   const fetchFamilyMembers = async () => {
     try {
       setError('')
-      // First, get group members
+      // First, get group members with roles
       const { data: membersData, error: membersError } = await supabase
         .from('group_members')
-        .select('id, user_id, created_at')
+        .select('id, user_id, role, created_at')
         .eq('group_id', group.id)
 
       if (membersError) throw membersError
@@ -120,6 +125,7 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
         return {
           id: member.id,
           user_id: member.user_id,
+          role: member.role as FamilyRole,
           created_at: member.created_at,
           email: profile?.email || null,
           display_name: profile?.display_name || null,
@@ -276,6 +282,59 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
     setShowRemoveMemberDialog(true)
   }
 
+  const handleRoleChange = async (memberId: string, newRole: FamilyRole) => {
+    if (!isOnline) return
+    
+    setChangingRoleFor(memberId)
+    try {
+      setError('')
+      
+      // Find the member being changed
+      const member = members.find(m => m.id === memberId)
+      const memberName = member?.display_name || member?.email || 'Member'
+      const oldRole = member?.role
+      
+      // Update the member's role
+      const { error } = await supabase
+        .from('group_members')
+        .update({ role: newRole })
+        .eq('id', memberId)
+        .eq('group_id', group.id)
+
+      if (error) {
+        console.error('Error updating member role:', error)
+        toast.error('Failed to update role', {
+          description: error.message || 'An error occurred while updating the member role.'
+        })
+        throw error
+      }
+      
+      // Update the local members list
+      setMembers(prev => prev.map(member => 
+        member.id === memberId 
+          ? { ...member, role: newRole }
+          : member
+      ))
+      
+      // Show success toast with role change details
+      const roleLabels: Record<FamilyRole, string> = {
+        owner: 'Owner',
+        member: 'Member',
+        viewer: 'Viewer'
+      }
+      
+      toast.success('Role updated', {
+        description: `${memberName} is now a ${roleLabels[newRole]}${oldRole ? ` (was ${roleLabels[oldRole]})` : ''}.`
+      })
+      
+    } catch (error: any) {
+      console.error('Error updating member role:', error)
+      setError('Failed to update member role. Please try again.')
+    } finally {
+      setChangingRoleFor(null)
+    }
+  }
+
   const renderFamilyIcon = (icon?: string) => {
     const currentIcon = icon || '🏠'
     
@@ -409,41 +468,51 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
                     const displayName = member.display_name || member.email || `User ${member.user_id.slice(0, 8)}...`
                     
                     return (
-                      <div key={member.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800">
-                        <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
-                          {renderProfileAvatar(memberProfile, { size: 'sm', fallbackTextSize: 'xs' })}
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm sm:text-base font-medium truncate">
-                              {displayName}
+                      <div key={member.id} className="flex flex-col gap-2 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
+                            {renderProfileAvatar(memberProfile, { size: 'sm', fallbackTextSize: 'xs' })}
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm sm:text-base font-medium truncate">
+                                {displayName}
+                              </p>
+                              {member.user_id === group.owner_id && (
+                                <Crown className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 flex-shrink-0" />
+                              )}
+                              <RoleBadge role={member.role} />
+                            </div>
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                              {member.user_id === user.id ? 'You' : member.email || 'Family Member'}
                             </p>
-                            {member.user_id === group.owner_id && (
-                              <Crown className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 flex-shrink-0" />
-                            )}
                           </div>
-                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                            {member.user_id === user.id ? 'You' : member.email || 'Family Member'}
-                          </p>
+                          {/* Remove member button - only show for owner and non-owner members */}
+                          {isOwner && member.user_id !== group.owner_id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveMember(member)}
+                              disabled={!isOnline}
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
+                              title="Remove member"
+                            >
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                          )}
                         </div>
-                        <div className="text-xs text-muted-foreground hidden sm:block">
-                          Joined {formatDate(member.created_at)}
-                        </div>
-                        <div className="text-xs text-muted-foreground sm:hidden">
-                          {formatDate(member.created_at).split(',')[0]}
-                        </div>
-                        {/* Remove member button - only show for owner and non-owner members */}
+                        {/* Role selector - only show for owner and for non-owner members */}
                         {isOwner && member.user_id !== group.owner_id && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveMember(member)}
-                            disabled={!isOnline}
-                            className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
-                            title="Remove member"
-                          >
-                            <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                          </Button>
+                          <div className="ml-11 sm:ml-13">
+                            <RoleSelector
+                              value={member.role}
+                              onChange={(newRole) => handleRoleChange(member.id, newRole)}
+                              disabled={!isOnline || changingRoleFor === member.id}
+                              label="Change Role"
+                              showDescription={false}
+                              className="w-full"
+                            />
+                          </div>
                         )}
                       </div>
                     )

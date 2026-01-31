@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
+import { usePermissions } from '../../hooks/use-permissions'
+import { toast } from 'sonner'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -56,6 +58,9 @@ interface Event {
   recurrence_end_date?: string
   description?: string
   created_at: string
+  created_by: string
+  edit_mode: 'private' | 'public'
+  updated_by?: string | null
 }
 
 interface Subscription {
@@ -105,6 +110,7 @@ interface EventsTabProps {
   onUpdate: () => void
   isOnline: boolean
   appConfig?: AppConfig
+  currentUserId: string
 }
 
 export const EventsTab: React.FC<EventsTabProps> = ({
@@ -113,9 +119,23 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   groupId,
   onUpdate,
   isOnline,
-  appConfig
+  appConfig,
+  currentUserId
 }) => {
   const { t } = useTranslation()
+  
+  // Get permissions for current user
+  const { 
+    canCreate, 
+    canModify, 
+    canDelete, 
+    isOwner, 
+    isMember, 
+    isViewer 
+  } = usePermissions({
+    groupId,
+    userId: currentUserId
+  })
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showEventInfoModal, setShowEventInfoModal] = useState(false)
@@ -476,6 +496,14 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   const addEvent = async () => {
     if (!newEventTitle.trim() || !newEventDate || !isOnline) return
 
+    // Check permissions
+    if (!canCreate) {
+      toast.error('Permission denied', {
+        description: 'You do not have permission to create events.'
+      })
+      return
+    }
+
     // Validation for different event types
     if (newEventType === 'range' && !newEventEndDate) {
       alert('Please select an end date for date range events')
@@ -495,7 +523,9 @@ export const EventsTab: React.FC<EventsTabProps> = ({
         title: newEventTitle,
         date: newEventDate,
         event_type: newEventType,
-        description: newEventDescription || null
+        description: newEventDescription || null,
+        created_by: currentUserId,
+        edit_mode: 'public'
       }
 
       // Add datetime fields - only if times are specified (for non-full-day events)
@@ -527,8 +557,17 @@ export const EventsTab: React.FC<EventsTabProps> = ({
         .from('events')
         .insert([eventData])
 
-      if (error) throw error
+      if (error) {
+        console.error('Error adding event:', error)
+        toast.error('Failed to create event', {
+          description: error.message || 'An error occurred while creating the event.'
+        })
+        throw error
+      }
       
+      toast.success('Event created', {
+        description: 'Your event has been created successfully.'
+      })
       resetForm()
       setShowCreateModal(false)
       onUpdate()
@@ -541,6 +580,15 @@ export const EventsTab: React.FC<EventsTabProps> = ({
 
   const updateEvent = async () => {
     if (!editingEvent || !newEventTitle.trim() || !newEventDate || !isOnline) return
+
+    // Check permissions
+    const modifyCheck = canModify(editingEvent)
+    if (!modifyCheck.allowed) {
+      toast.error('Permission denied', {
+        description: modifyCheck.reason || 'You do not have permission to edit this event.'
+      })
+      return
+    }
 
     // Validation for different event types
     if (newEventType === 'range' && !newEventEndDate) {
@@ -595,8 +643,17 @@ export const EventsTab: React.FC<EventsTabProps> = ({
         .update(eventData)
         .eq('id', editingEvent.id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Error updating event:', error)
+        toast.error('Failed to update event', {
+          description: error.message || 'An error occurred while updating the event.'
+        })
+        throw error
+      }
       
+      toast.success('Event updated', {
+        description: 'Your changes have been saved successfully.'
+      })
       resetForm()
       setShowEditModal(false)
       onUpdate()
@@ -610,6 +667,14 @@ export const EventsTab: React.FC<EventsTabProps> = ({
   const addQuickEvent = async () => {
     if (!quickEventTitle.trim() || !selectedDate || !isOnline) return
 
+    // Check permissions
+    if (!canCreate) {
+      toast.error('Permission denied', {
+        description: 'You do not have permission to create events.'
+      })
+      return
+    }
+
     setIsLoading(true)
     try {
       const eventData = {
@@ -617,14 +682,26 @@ export const EventsTab: React.FC<EventsTabProps> = ({
         title: quickEventTitle,
         date: formatDateForInput(selectedDate),
         event_type: 'single' as const,
-        description: null
+        description: null,
+        created_by: currentUserId,
+        edit_mode: 'public' as const
       }
 
       const { error } = await supabase
         .from('events')
         .insert([eventData])
 
-      if (error) throw error
+      if (error) {
+        console.error('Error adding quick event:', error)
+        toast.error('Failed to create event', {
+          description: error.message || 'An error occurred while creating the event.'
+        })
+        throw error
+      }
+      
+      toast.success('Event created', {
+        description: 'Quick event added to your calendar.'
+      })
       
       // Reset form
       setQuickEventTitle('')
@@ -689,12 +766,38 @@ export const EventsTab: React.FC<EventsTabProps> = ({
 
   const deleteEventDirect = async (eventId: string) => {
     try {
+      // Find the event to check permissions
+      const event = events.find(e => e.id === eventId)
+      if (!event) {
+        toast.error('Event not found')
+        return
+      }
+
+      // Check permissions
+      const deleteCheck = canDelete(event)
+      if (!deleteCheck.allowed) {
+        toast.error('Permission denied', {
+          description: deleteCheck.reason || 'You do not have permission to delete this event.'
+        })
+        return
+      }
+
       const { error } = await supabase
         .from('events')
         .delete()
         .eq('id', eventId)
 
-      if (error) throw error
+      if (error) {
+        console.error('Error deleting event:', error)
+        toast.error('Failed to delete event', {
+          description: error.message || 'An error occurred while deleting the event.'
+        })
+        throw error
+      }
+      
+      toast.success('Event deleted', {
+        description: 'The event has been deleted successfully.'
+      })
       onUpdate()
     } catch (error) {
       console.error('Error deleting event:', error)
@@ -1351,7 +1454,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                 </div>
               </div>
               <div className="flex items-center gap-1 ml-2">
-                {!isSubscription && (
+                {!isSubscription && canDelete(event).allowed && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1455,7 +1558,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
             
             {/* Action Buttons */}
             <div className="flex items-center gap-1 ml-2">
-              {!isSubscription && (
+              {!isSubscription && canDelete(event).allowed && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1498,17 +1601,19 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     if (selectedDateEvents.length === 0) {
       return (
                  <div className="text-center py-8 text-muted-foreground">
-           <CalendarIcon className={`${isDesktop ? 'h-12 w-12' : 'h-8 w-8'} mx-auto mb-3 opacity-50`} />
-           <p className="text-sm mb-3">No events on this date</p>
-          <Button
-            size="sm"
-            onClick={handleQuickAdd}
-            disabled={!isOnline}
-            variant="outline"
-          >
-            <Plus className="h-3 w-3 mr-1" />
-            Add Event
-          </Button>
+          <CalendarIcon className={`${isDesktop ? 'h-12 w-12' : 'h-8 w-8'} mx-auto mb-3 opacity-50`} />
+          <p className="text-sm mb-3">No events on this date</p>
+          {!isViewer && (
+            <Button
+              size="sm"
+              onClick={handleQuickAdd}
+              disabled={!isOnline}
+              variant="outline"
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Add Event
+            </Button>
+          )}
         </div>
       )
     }
@@ -1995,28 +2100,32 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                 )}
               </div>
 
-              {/* Action buttons at bottom */}
+              {/* Action buttons at bottom - only show if user has permissions */}
               <div className="flex gap-3 pt-4 border-t">
-                <Button
-                  onClick={switchToEditMode}
-                  disabled={!isOnline}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Event
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={(e) => {
-                    setShowEventInfoModal(false)
-                    handleDeleteClick(clickedEvent)
-                  }}
-                  disabled={!isOnline}
-                  className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
+                {canModify(selectedEvent).allowed && (
+                  <Button
+                    onClick={switchToEditMode}
+                    disabled={!isOnline}
+                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Event
+                  </Button>
+                )}
+                {canDelete(clickedEvent).allowed && (
+                  <Button
+                    variant="outline"
+                    onClick={(e) => {
+                      setShowEventInfoModal(false)
+                      handleDeleteClick(clickedEvent)
+                    }}
+                    disabled={!isOnline}
+                    className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                )}
               </div>
             </>
           )}

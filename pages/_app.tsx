@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { User } from '@supabase/supabase-js'
 import { ThemeProvider } from '../contexts/ThemeContext'
+import { Toaster } from 'sonner'
 import '../lib/i18n' // Initialize i18n
 import '../styles/globals.css'
 
@@ -140,6 +141,20 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <ThemeProvider>
+      {/* Toast Notifications */}
+      <Toaster 
+        position="top-center" 
+        richColors 
+        closeButton
+        toastOptions={{
+          style: {
+            background: 'hsl(var(--background))',
+            color: 'hsl(var(--foreground))',
+            border: '1px solid hsl(var(--border))',
+          },
+        }}
+      />
+      
       {/* PWA: Network Status Indicator */}
       {showNetworkStatus && (
         <div className={`network-status ${isOnline ? 'online' : 'offline'}`}>

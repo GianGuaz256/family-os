@@ -136,7 +136,8 @@ export default function InvitePage() {
         .from('group_members')
         .insert([{
           group_id: family.id,
-          user_id: user.id
+          user_id: user.id,
+          role: 'member' // Set default role as member
         }])
 
       if (error) throw error

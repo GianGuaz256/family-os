@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { usePermissions } from '../../hooks/use-permissions'
+import { toast } from 'sonner'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -18,8 +20,10 @@ import { AppHeader } from '../ui/AppHeader'
 import { AppConfig } from '../../lib/app-types'
 import { validateLoyaltyCard, fieldValidators } from '../../lib/card-validation'
 import { CreditCard, Plus, Trash2, Edit, X, FileText, QrCode, Camera, FileEdit } from 'lucide-react'
+import { LockToggle, LockIcon } from '../ui/LockToggle'
+import { ResourceBase } from '@/lib/permissions'
 
-interface LoyaltyCard {
+interface LoyaltyCard extends ResourceBase {
   id: string
   name: string
   brand: string | null
@@ -34,6 +38,7 @@ interface LoyaltyCard {
 interface CardsTabProps {
   cards: LoyaltyCard[]
   groupId: string
+  userId: string
   onUpdate: () => void
   isOnline: boolean
   appConfig?: AppConfig
@@ -42,6 +47,7 @@ interface CardsTabProps {
 export const CardsTab: React.FC<CardsTabProps> = ({
   cards,
   groupId,
+  userId,
   onUpdate,
   isOnline,
   appConfig
@@ -57,10 +63,24 @@ export const CardsTab: React.FC<CardsTabProps> = ({
     barcode: '',
     points_balance: '',
     expiry_date: '',
-    notes: ''
+    notes: '',
+    edit_mode: 'public' as 'private' | 'public'
   })
   const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({})
   const [isSaving, setIsSaving] = useState(false)
+
+  // Get user permissions
+  const { 
+    canCreate, 
+    canModify, 
+    canDelete, 
+    isOwner, 
+    isMember, 
+    isViewer 
+  } = usePermissions({ 
+    groupId, 
+    userId 
+  })
 
   // Listen for custom events from BottomActions
   useEffect(() => {
@@ -88,7 +108,8 @@ export const CardsTab: React.FC<CardsTabProps> = ({
       barcode: '',
       points_balance: '',
       expiry_date: '',
-      notes: ''
+      notes: '',
+      edit_mode: 'public' as 'private' | 'public'
     })
     setEditingCard(null)
     setShowFullscreenCard(null)
@@ -109,6 +130,27 @@ export const CardsTab: React.FC<CardsTabProps> = ({
 
   const saveCard = async () => {
     if (!isOnline) return
+    
+    // Check create permission
+    if (!editingCard && !canCreate) {
+      toast.error('Permission denied', {
+        description: 'You do not have permission to create cards.'
+      })
+      setValidationErrors({ general: ['You do not have permission to create cards'] })
+      return
+    }
+
+    // Check modify permission for editing
+    if (editingCard) {
+      const canModifyResult = canModify(editingCard)
+      if (!canModifyResult.allowed) {
+        toast.error('Permission denied', {
+          description: canModifyResult.reason || 'You cannot modify this card.'
+        })
+        setValidationErrors({ general: [canModifyResult.reason || 'You cannot modify this card'] })
+        return
+      }
+    }
 
     setIsSaving(true)
     setValidationErrors({})
@@ -123,22 +165,50 @@ export const CardsTab: React.FC<CardsTabProps> = ({
     }
 
     try {
-      const cardData = {
-        group_id: groupId,
-        ...validation.data
-      }
-
       if (editingCard) {
+        // For updates, only include the fields that can be changed
+        const updateData = {
+          ...validation.data,
+          edit_mode: formData.edit_mode,
+          updated_by: userId
+        }
+        
         const { error } = await supabase
           .from('cards')
-          .update(cardData)
+          .update(updateData)
           .eq('id', editingCard.id)
-        if (error) throw error
+        if (error) {
+          console.error('Error updating card:', error)
+          toast.error('Failed to update card', {
+            description: error.message || 'An error occurred while updating the card.'
+          })
+          throw error
+        }
+        toast.success('Card updated', {
+          description: 'Your card has been updated successfully.'
+        })
       } else {
+        // For inserts, include all required RBAC fields
+        const insertData = {
+          group_id: groupId,
+          created_by: userId,
+          edit_mode: formData.edit_mode,
+          ...validation.data
+        }
+        
         const { error } = await supabase
           .from('cards')
-          .insert([cardData])
-        if (error) throw error
+          .insert([insertData])
+        if (error) {
+          console.error('Error creating card:', error)
+          toast.error('Failed to create card', {
+            description: error.message || 'An error occurred while creating the card.'
+          })
+          throw error
+        }
+        toast.success('Card created', {
+          description: 'Your card has been created successfully.'
+        })
       }
 
       resetForm()
@@ -152,8 +222,19 @@ export const CardsTab: React.FC<CardsTabProps> = ({
     }
   }
 
-  const deleteCard = async (cardId: string) => {
-    if (!isOnline || !confirm('Are you sure you want to delete this card?')) return
+  const deleteCard = async (cardId: string, card: LoyaltyCard) => {
+    if (!isOnline) return
+
+    // Check delete permission
+    const canDeleteResult = canDelete(card)
+    if (!canDeleteResult.allowed) {
+      toast.error('Permission denied', {
+        description: canDeleteResult.reason || 'You cannot delete this card.'
+      })
+      return
+    }
+
+    if (!confirm('Are you sure you want to delete this card?')) return
 
     try {
       const { error } = await supabase
@@ -161,7 +242,17 @@ export const CardsTab: React.FC<CardsTabProps> = ({
         .delete()
         .eq('id', cardId)
 
-      if (error) throw error
+      if (error) {
+        console.error('Error deleting card:', error)
+        toast.error('Failed to delete card', {
+          description: error.message || 'An error occurred while deleting the card.'
+        })
+        throw error
+      }
+      
+      toast.success('Card deleted', {
+        description: 'The card has been deleted successfully.'
+      })
       onUpdate()
     } catch (error) {
       console.error('Error deleting card:', error)
@@ -169,6 +260,15 @@ export const CardsTab: React.FC<CardsTabProps> = ({
   }
 
   const editCard = (card: LoyaltyCard) => {
+    // Check modify permission
+    const canModifyResult = canModify(card)
+    if (!canModifyResult.allowed) {
+      toast.error('Permission denied', {
+        description: canModifyResult.reason || 'You cannot edit this card.'
+      })
+      return
+    }
+
     setEditingCard(card)
     setFormData({
       name: card.name,
@@ -177,7 +277,8 @@ export const CardsTab: React.FC<CardsTabProps> = ({
       barcode: card.barcode || '',
       points_balance: card.points_balance || '',
       expiry_date: card.expiry_date || '',
-      notes: card.notes || ''
+      notes: card.notes || '',
+      edit_mode: card.edit_mode
     })
     setActiveTab('manual')
     setShowAddModal(true)
@@ -221,25 +322,35 @@ export const CardsTab: React.FC<CardsTabProps> = ({
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {cards.map((card) => (
-            <Card 
-              key={card.id} 
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => setShowFullscreenCard(card)}
-            >
-              <CardContent className="p-6">
-                <VirtualCard
-                  name={card.name}
-                  brand={card.brand}
-                  cardNumber={card.card_number}
-                  barcode={card.barcode}
-                  pointsBalance={card.points_balance}
-                  expiryDate={card.expiry_date}
-                  size="small"
-                />
-              </CardContent>
-            </Card>
-          ))}
+          {cards.map((card) => {
+            const canModifyResult = canModify(card)
+            const canDeleteResult = canDelete(card)
+            
+            return (
+              <Card 
+                key={card.id} 
+                className="cursor-pointer hover:shadow-md transition-shadow relative"
+                onClick={() => setShowFullscreenCard(card)}
+              >
+                <CardContent className="p-6">
+                  {card.edit_mode === 'private' && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <LockIcon editMode="private" size={16} />
+                    </div>
+                  )}
+                  <VirtualCard
+                    name={card.name}
+                    brand={card.brand}
+                    cardNumber={card.card_number}
+                    barcode={card.barcode}
+                    pointsBalance={card.points_balance}
+                    expiryDate={card.expiry_date}
+                    size="small"
+                  />
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       )}
 
@@ -381,6 +492,19 @@ export const CardsTab: React.FC<CardsTabProps> = ({
                   )}
                 </div>
 
+                {/* Edit Mode Toggle - Only for owners */}
+                {isOwner && (
+                  <div className="pt-2 border-t">
+                    <LockToggle
+                      editMode={formData.edit_mode}
+                      onChange={(mode) => setFormData(prev => ({ ...prev, edit_mode: mode }))}
+                      disabled={!isOnline}
+                      label={formData.edit_mode === 'private' ? 'Private (Only you can edit)' : 'Public (Members can edit)'}
+                      showLabel={true}
+                    />
+                  </div>
+                )}
+
                 <div className="flex gap-2 pt-4">
                   <Button 
                     onClick={saveCard} 
@@ -439,81 +563,91 @@ export const CardsTab: React.FC<CardsTabProps> = ({
                 />
               </div>
 
-              {/* Management Section */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-4">Gestisci</h3>
-                <div className="space-y-0 border border-border rounded-lg overflow-hidden">
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      editCard(showFullscreenCard)
-                      setShowFullscreenCard(null)
-                    }}
-                    className="w-full flex items-center justify-between py-4 px-4 h-auto rounded-none border-b border-border hover:bg-muted transition-colors"
-                    disabled={!isOnline}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Edit className="h-5 w-5" />
-                      <span className="text-base">Modifica carta</span>
-                    </div>
-                    <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Button>
+              {/* Management Section - only show if user has permissions */}
+              {!isViewer && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-4">Gestisci</h3>
+                  <div className="space-y-0 border border-border rounded-lg overflow-hidden">
+                    {canModify(showFullscreenCard).allowed && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          editCard(showFullscreenCard)
+                          setShowFullscreenCard(null)
+                        }}
+                        className="w-full flex items-center justify-between py-4 px-4 h-auto rounded-none border-b border-border hover:bg-muted transition-colors"
+                        disabled={!isOnline}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Edit className="h-5 w-5" />
+                          <span className="text-base">Modifica carta</span>
+                        </div>
+                        <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Button>
+                    )}
 
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setShowFullscreenCard(null)
-                      setActiveTab('scan')
-                      setShowAddModal(true)
-                    }}
-                    className="w-full flex items-center justify-between py-4 px-4 h-auto rounded-none border-b border-border hover:bg-muted transition-colors"
-                    disabled={!isOnline}
-                  >
-                    <div className="flex items-center gap-3">
-                      <QrCode className="h-5 w-5" />
-                      <span className="text-base">Update Barcode</span>
-                    </div>
-                    <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Button>
+                    {canModify(showFullscreenCard).allowed && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setShowFullscreenCard(null)
+                          setActiveTab('scan')
+                          setShowAddModal(true)
+                        }}
+                        className="w-full flex items-center justify-between py-4 px-4 h-auto rounded-none border-b border-border hover:bg-muted transition-colors"
+                        disabled={!isOnline}
+                      >
+                        <div className="flex items-center gap-3">
+                          <QrCode className="h-5 w-5" />
+                          <span className="text-base">Update Barcode</span>
+                        </div>
+                        <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Button>
+                    )}
 
-                  <Button
-                    variant="ghost"
-                    className="w-full flex items-center justify-between py-4 px-4 h-auto rounded-none border-b border-border hover:bg-muted transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5" />
-                      <span className="text-base">Nota</span>
-                    </div>
-                    <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Button>
+                    {canModify(showFullscreenCard).allowed && (
+                      <Button
+                        variant="ghost"
+                        className="w-full flex items-center justify-between py-4 px-4 h-auto rounded-none border-b border-border hover:bg-muted transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <FileText className="h-5 w-5" />
+                          <span className="text-base">Nota</span>
+                        </div>
+                        <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Button>
+                    )}
 
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      if (confirm('Sei sicuro di voler eliminare questa carta?')) {
-                        deleteCard(showFullscreenCard.id)
-                        setShowFullscreenCard(null)
-                      }
-                    }}
-                    className="w-full flex items-center justify-between py-4 px-4 h-auto rounded-none text-destructive hover:bg-destructive/10 transition-colors"
-                    disabled={!isOnline}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Trash2 className="h-5 w-5" />
-                      <span className="text-base">Elimina carta</span>
-                    </div>
-                    <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Button>
+                    {canDelete(showFullscreenCard).allowed && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          if (confirm('Sei sicuro di voler eliminare questa carta?')) {
+                            deleteCard(showFullscreenCard.id, showFullscreenCard)
+                            setShowFullscreenCard(null)
+                          }
+                        }}
+                        className="w-full flex items-center justify-between py-4 px-4 h-auto rounded-none text-destructive hover:bg-destructive/10 transition-colors"
+                        disabled={!isOnline}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Trash2 className="h-5 w-5" />
+                          <span className="text-base">Elimina carta</span>
+                        </div>
+                        <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {showFullscreenCard.notes && (
                 <div className="mb-6">
