@@ -775,9 +775,9 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({
                                 <Avatar className="h-5 w-5">
                                   {renderProfileAvatar({
                                     id: payer.user_id,
-                                    email: payer.email,
-                                    display_name: payer.display_name,
-                                    profile_image: payer.profile_image,
+                                    email: payer.email ?? null,
+                                    display_name: payer.display_name ?? null,
+                                    profile_image: payer.profile_image ?? null,
                                     updated_at: new Date().toISOString()
                                   }, { size: 'sm', fallbackTextSize: 'xs' })}
                                 </Avatar>
