@@ -11,6 +11,7 @@ import { CardsTab } from './CardsTab'
 import { SubscriptionsTab } from './SubscriptionsTab'
 import { NotesTab } from './NotesTab'
 import { SettingsTab } from './SettingsTab'
+import { FamilyManagement } from '../family/FamilyManagement'
 import { usePullToRefresh } from '../../hooks/usePullToRefresh'
 import {  
   ChevronDown,
@@ -52,6 +53,7 @@ interface FamilyGroup {
   owner_id: string
   invite_code: string
   icon?: string
+  created_at?: string
 }
 
 interface DashboardProps {
@@ -84,6 +86,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [allGroups, setAllGroups] = useState<FamilyGroup[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [isSwitchingFamily, setIsSwitchingFamily] = useState(false)
+  const [showFamilyManagement, setShowFamilyManagement] = useState(false)
   
   // Track counts separately for home view (lightweight)
   const [counts, setCounts] = useState({
@@ -575,6 +578,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   }
 
+  const handleOpenFamilyManagement = () => {
+    setShowFamilyManagement(true)
+  }
+
+  const handleCloseFamilyManagement = () => {
+    setShowFamilyManagement(false)
+  }
+
+  const handleFamilyDeleted = () => {
+    setShowFamilyManagement(false)
+    onLeaveGroup()
+  }
+
   const renderFamilyIcon = (icon?: string) => {
     const currentIcon = icon || '🏠'
     
@@ -756,6 +772,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return actions
   }
 
+  // Show Family Management if requested
+  if (showFamilyManagement) {
+    return (
+      <FamilyManagement
+        user={user}
+        group={group}
+        onBack={handleCloseFamilyManagement}
+        onFamilyDeleted={handleFamilyDeleted}
+        isOnline={isOnline}
+      />
+    )
+  }
+
   if (currentView !== 'home') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex flex-col">
@@ -834,7 +863,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           onHome={() => setCurrentView('home')}
           onSettings={() => setCurrentView('settings')}
           onLogout={onLogout}
-          onManageFamilies={onLeaveGroup}
+          onFamilySettings={handleOpenFamilyManagement}
           contextualActions={getContextualActions()}
           isHome={false}
         />
@@ -1010,11 +1039,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* Bottom Actions for Home Screen */}
         <BottomActions
           user={user}
-          onHome={() => {}} // No action needed since we're already home
           onSettings={() => setCurrentView('settings')}
           onLogout={onLogout}
-          onManageFamilies={onLeaveGroup}
+          onFamilySettings={handleOpenFamilyManagement}
           isHome={true}
+          showHomeButton={false}
         />
 
         <div className="h-32"></div> {/* Bottom spacing */}
