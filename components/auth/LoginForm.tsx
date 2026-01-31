@@ -21,6 +21,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
+  const [signUpSuccess, setSignUpSuccess] = useState(false)
+  
+  // TODO: Enable email verification in production
+  // Set to false to disable email verification (early stage)
+  const ENABLE_EMAIL_VERIFICATION = false
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,15 +43,61 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
           })
         : await supabase.auth.signInWithPassword({ email, password })
 
-      if (error) throw error
+      if (error) {
+        console.error('Auth error:', error)
+        throw error
+      }
       
-      if (isSignUp && !data.user?.email_confirmed_at) {
-        setError(t('auth.emailConfirmationRequired'))
+      if (isSignUp) {
+        // TODO: Remove ENABLE_EMAIL_VERIFICATION check when ready for production
+        if (!ENABLE_EMAIL_VERIFICATION) {
+          // Email verification disabled - proceed directly (early stage)
+          onSuccess()
+        } else if (data.user?.email_confirmed_at) {
+          // Auto-confirm is enabled in Supabase, proceed directly
+          onSuccess()
+        } else {
+          // Email confirmation required - show success UI
+          setSignUpSuccess(true)
+        }
       } else if (data.user) {
+        // For login, proceed normally
         onSuccess()
       }
     } catch (error: any) {
-      setError(error.message)
+      console.error('Full login/signup error:', error)
+      // Check for specific Supabase trigger errors which often manifest as 500
+      if (error.status === 500 || error.code === '500') {
+        setError(t('errors.databaseErrorSavingUser') || 'Database error saving new user. This usually happens when a database trigger fails. Please check the database logs.')
+      } else {
+        setError(error.message || t('errors.unexpectedError'))
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleResendEmail = async () => {
+    if (!email) return
+    
+    setIsLoading(true)
+    setError('')
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+        options: {
+          emailRedirectTo: getAuthRedirectUrl()
+        }
+      })
+
+      if (error) throw error
+      
+      // Show success feedback
+      setError('')
+    } catch (error: any) {
+      setError(error.message || t('errors.unexpectedError'))
     } finally {
       setIsLoading(false)
     }
@@ -77,8 +128,67 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Sign Up Success State */}
+            {signUpSuccess ? (
+              <>
+                <div className="text-center space-y-4">
+                  <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                    <span className="text-3xl">✉️</span>
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-foreground">
+                      {t('auth.checkYourEmail')}
+                    </h3>
+                    <p className="text-muted-foreground text-base">
+                      {t('auth.verificationEmailSent', { email })}
+                    </p>
+                  </div>
+                </div>
+
+                <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                  <AlertDescription className="text-blue-800 dark:text-blue-200 text-sm">
+                    {t('auth.clickLinkToVerify')}
+                  </AlertDescription>
+                </Alert>
+
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="space-y-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-12 text-base"
+                    onClick={handleResendEmail}
+                    disabled={isLoading}
+                    size="lg"
+                  >
+                    {isLoading ? t('common.loading') : t('auth.resendEmail')}
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full h-12 text-base"
+                    onClick={() => {
+                      setSignUpSuccess(false)
+                      setIsSignUp(false)
+                      setEmail('')
+                      setPassword('')
+                      setError('')
+                    }}
+                    size="lg"
+                  >
+                    {t('auth.backToLogin')}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              /* Normal Login/Signup Form */
+              <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium">{t('auth.email')}</Label>
                 <Input
@@ -153,6 +263,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                 </Button>
               </div>
             </form>
+            )}
           </CardContent>
         </Card>
       </div>

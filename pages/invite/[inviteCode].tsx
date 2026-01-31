@@ -172,9 +172,15 @@ export default function InvitePage() {
           }
         })
 
-        if (error) throw error
+        if (error) {
+          console.error('Signup error:', error)
+          throw error
+        }
 
-        if (!data.user?.email_confirmed_at) {
+        if (data.user?.email_confirmed_at || data.session) {
+          setSuccess('Account created successfully! Redirecting...')
+          // joinFamily will be called via auth state change if session exists
+        } else {
           setSuccess('Please check your email to confirm your account, then return to this link.')
         }
       } else {
@@ -183,12 +189,20 @@ export default function InvitePage() {
           password
         })
 
-        if (error) throw error
+        if (error) {
+          console.error('Signin error:', error)
+          throw error
+        }
         
         // joinFamily will be called automatically via the auth state change
       }
     } catch (error: any) {
-      setError(error.message)
+      console.error('Full auth error:', error)
+      if (error.status === 500 || error.code === '500') {
+        setError('Database error saving new user. This usually happens when a database trigger fails. Please check the database logs.')
+      } else {
+        setError(error.message)
+      }
     } finally {
       setIsAuthLoading(false)
     }

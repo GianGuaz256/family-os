@@ -812,9 +812,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   if (currentView !== 'home') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex flex-col">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex flex-col overflow-x-hidden">
         {/* App Content */}
-        <div className="flex-1 overflow-y-auto p-4 pb-32">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-32">
           {currentView === 'lists' && (
             <ListsTab 
               lists={lists} 
@@ -903,7 +903,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div 
       ref={containerRef}
-      className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex flex-col fixed inset-0 overflow-hidden"
+      className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex flex-col overflow-x-hidden"
       style={{
         paddingTop: pullDistance > 0 ? `${Math.min(pullDistance * 0.8 + 20, 100)}px` : undefined,
         transition: pullDistance === 0 ? 'padding-top 0.4s ease-out' : undefined
@@ -917,7 +917,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       />
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {/* Family Selector Widget */}
         <div className="px-6 pt-16 mb-8 flex justify-center">
           <div className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl">

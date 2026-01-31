@@ -37,7 +37,13 @@
     "passwordUpdated": "Password aggiornata con successo! Ora puoi accedere.",
     "passwordsDoNotMatch": "Le password non corrispondono",
     "resetPasswordTitle": "Imposta nuova password",
-    "resetPasswordDescription": "Inserisci la tua nuova password qui sotto."
+    "resetPasswordDescription": "Inserisci la tua nuova password qui sotto.",
+    "checkYourEmail": "Controlla la tua email",
+    "verificationEmailSent": "Abbiamo inviato un link di verifica a {{email}}",
+    "clickLinkToVerify": "Clicca sul link nell'email per verificare il tuo account e completare la registrazione.",
+    "resendEmail": "Invia nuovamente l'email di verifica",
+    "emailVerified": "Email verificata con successo!",
+    "verificationComplete": "La tua email è stata verificata. Ora puoi accedere."
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -282,6 +288,7 @@
     "validationError": "Errore di validazione",
     "serverError": "Errore del server",
     "unexpectedError": "Si è verificato un errore imprevisto",
+    "databaseErrorSavingUser": "Errore del database nel salvataggio del nuovo utente. Questo accade solitamente quando un trigger del database fallisce.",
     "loadFamilyGroups": "Impossibile caricare i gruppi famiglia",
     "createFamilyGroup": "Impossibile creare il gruppo famiglia",
     "joinFamilyGroup": "Impossibile unirsi al gruppo famiglia. Controlla il codice invito."

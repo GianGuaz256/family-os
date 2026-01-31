@@ -171,10 +171,15 @@
   }
   
   html {
-    /* PWA: Ensure full viewport usage */
-    height: 100%;
+    /* PWA: Use dynamic viewport height with fallback */
+    height: 100dvh;
+    height: 100vh;
     width: 100%;
+    /* Prevent horizontal scroll */
     overflow-x: hidden;
+    /* Prevent overscroll bounce on mobile */
+    overscroll-behavior-y: none;
+    overscroll-behavior-x: none;
   }
   
   body {
@@ -187,13 +192,24 @@
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
     
-    /* PWA: Prevent iOS bounce effect */
-    height: 100vh;
-    height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    /* PWA: Use dynamic viewport height with fallback */
+    min-height: 100dvh;
+    min-height: 100vh;
+    
+    /* Prevent horizontal scroll */
     overflow-x: hidden;
+    /* Allow vertical scroll */
+    overflow-y: auto;
     
     /* PWA: Smooth scrolling for better mobile experience */
     -webkit-overflow-scrolling: touch;
+    
+    /* Prevent overscroll bounce */
+    overscroll-behavior-y: none;
+    overscroll-behavior-x: none;
+    
+    /* Prevent pull-to-refresh except where explicitly enabled */
+    touch-action: pan-y pinch-zoom;
     
     /* PWA: Ensure safe area background matches theme */
     background-color: hsl(var(--background));
@@ -201,8 +217,9 @@
   
   /* PWA: Ensure main content respects safe areas */
   #__next {
+    min-height: 100dvh;
     min-height: 100vh;
-    min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-x: hidden;
   }
   
   /* PWA: Fix for iOS address bar height changes */

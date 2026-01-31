@@ -37,7 +37,13 @@
     "passwordUpdated": "Password updated successfully! You can now sign in.",
     "passwordsDoNotMatch": "Passwords do not match",
     "resetPasswordTitle": "Set New Password",
-    "resetPasswordDescription": "Enter your new password below."
+    "resetPasswordDescription": "Enter your new password below.",
+    "checkYourEmail": "Check your email",
+    "verificationEmailSent": "We've sent a verification link to {{email}}",
+    "clickLinkToVerify": "Click the link in the email to verify your account and complete your signup.",
+    "resendEmail": "Resend verification email",
+    "emailVerified": "Email verified successfully!",
+    "verificationComplete": "Your email has been verified. You can now sign in."
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -282,6 +288,7 @@
     "validationError": "Validation error",
     "serverError": "Server error",
     "unexpectedError": "An unexpected error occurred",
+    "databaseErrorSavingUser": "Database error saving new user. This usually happens when a database trigger fails.",
     "loadFamilyGroups": "Failed to load family groups",
     "createFamilyGroup": "Failed to create family group",
     "joinFamilyGroup": "Failed to join family group. Please check the invite code."
