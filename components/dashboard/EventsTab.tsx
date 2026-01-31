@@ -1672,7 +1672,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                     {formatDateShort(selectedDate)}
                   </span>
                 ) : (
-                  t('apps.events.selectDate')
+                  t('events.selectDate')
                 )}
               </h3>
               {selectedDate && (
@@ -1868,17 +1868,17 @@ export const EventsTab: React.FC<EventsTabProps> = ({
       >
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="sr-only">{t('apps.events.eventInfo')}</DialogTitle>
+            <DialogTitle className="sr-only">{t('events.eventInfo')}</DialogTitle>
           </DialogHeader>
           {selectedEvent && clickedEvent && (
             <>
               {/* Header with event name */}
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-xl font-semibold text-foreground">
                   {selectedEvent.title}
                 </h2>
                 {selectedEvent.description && (
-                  <p className="text-gray-600 text-sm mt-2">
+                  <p className="text-muted-foreground text-sm mt-2">
                     {selectedEvent.description}
                   </p>
                 )}
@@ -1895,15 +1895,15 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                         <div className="flex items-center gap-3">
                           <CalendarIcon className="h-5 w-5 text-primary" />
                           <div>
-                            <span className="text-sm font-medium text-gray-700">{t('apps.events.startDate')}</span>
-                            <p className="text-sm text-gray-900">{rangeDisplay.startDisplay}</p>
+                            <span className="text-sm font-medium text-muted-foreground">{t('events.startDate')}</span>
+                            <p className="text-sm text-foreground">{rangeDisplay.startDisplay}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
                           <CalendarDays className="h-5 w-5 text-primary" />
                           <div>
-                            <span className="text-sm font-medium text-gray-700">{t('apps.events.endDate')}</span>
-                            <p className="text-sm text-gray-900">{rangeDisplay.endDisplay}</p>
+                            <span className="text-sm font-medium text-muted-foreground">{t('events.endDate')}</span>
+                            <p className="text-sm text-foreground">{rangeDisplay.endDisplay}</p>
                           </div>
                         </div>
                       </div>
@@ -1917,8 +1917,8 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                       <div className="flex items-center gap-3">
                         <CalendarIcon className="h-5 w-5 text-primary" />
                         <div>
-                          <span className="text-sm font-medium text-gray-700">{t('apps.events.thisOccurrence')}</span>
-                          <p className="text-sm text-gray-900">
+                          <span className="text-sm font-medium text-muted-foreground">{t('events.thisOccurrence')}</span>
+                          <p className="text-sm text-foreground">
                             {formatDateLong(clickedEvent.date)}
                             {getEventTimeDisplay(clickedEvent, new Date(clickedEvent.date + 'T00:00:00')) && ` at ${getEventTimeDisplay(clickedEvent, new Date(clickedEvent.date + 'T00:00:00'))}`}
                           </p>
@@ -1930,31 +1930,31 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                       <div className="flex items-center gap-3">
                         <Clock className="h-5 w-5 text-primary" />
                         <div>
-                          <span className="text-sm font-medium text-gray-700">{t('apps.events.time')}</span>
-                          <p className="text-sm text-gray-900">{getEventTimeDisplay(selectedEvent, new Date(selectedEvent.date + 'T00:00:00'))}</p>
+                          <span className="text-sm font-medium text-muted-foreground">{t('events.time')}</span>
+                          <p className="text-sm text-foreground">{getEventTimeDisplay(selectedEvent, new Date(selectedEvent.date + 'T00:00:00'))}</p>
                         </div>
                       </div>
                     )}
 
                     {/* Master event info section */}
-                    <div className="border-t pt-4 mt-4">
-                      <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <div className="border-t border-border pt-4 mt-4">
+                      <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                         <Repeat className="h-4 w-4 text-primary" />
-{t('apps.events.recurringEventSeries')}
+                        {t('events.recurringEventSeries')}
                       </h3>
                       <div className="space-y-3">
                         <div className="flex items-center gap-3">
                           <CalendarIcon className="h-4 w-4 text-primary" />
                           <div>
-                            <span className="text-xs font-medium text-gray-600">{t('apps.events.seriesStarts')}</span>
-                            <p className="text-sm text-gray-800">{formatDateLong(selectedEvent.date)}</p>
+                            <span className="text-xs font-medium text-muted-foreground">{t('events.seriesStarts')}</span>
+                            <p className="text-sm text-foreground">{formatDateLong(selectedEvent.date)}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
                           <Repeat className="h-4 w-4 text-primary" />
                           <div>
-                            <span className="text-xs font-medium text-gray-600">Repeats</span>
-                            <p className="text-sm text-gray-800">
+                            <span className="text-xs font-medium text-muted-foreground">{t('events.repeats')}</span>
+                            <p className="text-sm text-foreground">
                               {selectedEvent.recurrence_pattern}
                               {selectedEvent.recurrence_interval && selectedEvent.recurrence_interval > 1 ? ` (every ${selectedEvent.recurrence_interval})` : ''}
                             </p>
@@ -1964,8 +1964,8 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                           <div className="flex items-center gap-3">
                             <CalendarDays className="h-4 w-4 text-primary" />
                             <div>
-                              <span className="text-xs font-medium text-gray-600">Ends</span>
-                              <p className="text-sm text-gray-800">{formatDateLong(selectedEvent.recurrence_end_date)}</p>
+                              <span className="text-xs font-medium text-muted-foreground">{t('events.ends')}</span>
+                              <p className="text-sm text-foreground">{formatDateLong(selectedEvent.recurrence_end_date)}</p>
                             </div>
                           </div>
                         )}
@@ -1978,16 +1978,16 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                     <div className="flex items-center gap-3">
                       <CalendarIcon className="h-5 w-5 text-primary" />
                       <div>
-                        <span className="text-sm font-medium text-gray-700">Date</span>
-                        <p className="text-sm text-gray-900">{formatDateLong(selectedEvent.date)}</p>
+                        <span className="text-sm font-medium text-muted-foreground">{t('events.eventDate')}</span>
+                        <p className="text-sm text-foreground">{formatDateLong(selectedEvent.date)}</p>
                       </div>
                     </div>
                     {getEventTimeDisplay(selectedEvent, new Date(selectedEvent.date + 'T00:00:00')) && (
                       <div className="flex items-center gap-3">
                         <Clock className="h-5 w-5 text-primary" />
                         <div>
-                          <span className="text-sm font-medium text-gray-700">Time</span>
-                          <p className="text-sm text-gray-900">{getEventTimeDisplay(selectedEvent, new Date(selectedEvent.date + 'T00:00:00'))}</p>
+                          <span className="text-sm font-medium text-muted-foreground">{t('events.eventTime')}</span>
+                          <p className="text-sm text-foreground">{getEventTimeDisplay(selectedEvent, new Date(selectedEvent.date + 'T00:00:00'))}</p>
                         </div>
                       </div>
                     )}
@@ -1996,11 +1996,11 @@ export const EventsTab: React.FC<EventsTabProps> = ({
               </div>
 
               {/* Action buttons at bottom */}
-              <div className="flex gap-3 pt-4 border-t">
+              <div className="flex gap-3 pt-4 border-t border-border">
                 <Button
                   onClick={switchToEditMode}
                   disabled={!isOnline}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground dark:bg-primary/60 dark:text-foreground dark:hover:bg-primary/50 dark:border dark:border-primary/40"
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Event
@@ -2012,7 +2012,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                     handleDeleteClick(clickedEvent)
                   }}
                   disabled={!isOnline}
-                  className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                  className="flex-1 text-destructive-foreground hover:text-destructive-foreground hover:bg-destructive/10 border-destructive/50 dark:border-destructive/30"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete

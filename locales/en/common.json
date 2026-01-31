@@ -160,7 +160,9 @@
     "thisOccurrence": "This Occurrence",
     "time": "Time",
     "recurringEventSeries": "Recurring Event Series",
-    "seriesStarts": "Series starts"
+    "seriesStarts": "Series starts",
+    "repeats": "Repeats",
+    "ends": "Ends"
   },
   "documents": {
     "title": "Documents",
