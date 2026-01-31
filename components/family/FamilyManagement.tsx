@@ -399,9 +399,9 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
                     // Create a profile object for the avatar utility
                     const memberProfile: ProfileData = {
                       id: member.user_id,
-                      email: member.email || null,
-                      display_name: member.display_name || null,
-                      profile_image: member.profile_image || null,
+                      email: member.email ?? null,
+                      display_name: member.display_name ?? null,
+                      profile_image: member.profile_image ?? null,
                       updated_at: member.created_at
                     }
                     
