@@ -84,13 +84,61 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [allGroups, setAllGroups] = useState<FamilyGroup[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [isSwitchingFamily, setIsSwitchingFamily] = useState(false)
+  
+  // Track counts separately for home view (lightweight)
+  const [counts, setCounts] = useState({
+    lists: 0,
+    documents: 0,
+    events: 0,
+    cards: 0,
+    subscriptions: 0,
+    notes: 0
+  })
+  
+  // Track which tabs have been fully loaded (for lazy loading)
+  const [loadedTabs, setLoadedTabs] = useState<Set<AppView>>(new Set())
 
   // Debouncing refs to prevent excessive calls
   const fetchTimeoutRef = useRef<NodeJS.Timeout>()
   const lastFetchRef = useRef<number>(0)
   const DEBOUNCE_DELAY = 1000 // 1 second debounce
 
-  // Selective fetch functions - only fetch what's needed
+  // Fetch dashboard counts only (for home view) - lightweight queries
+  const fetchDashboardCounts = useCallback(async () => {
+    if (!isOnline) return
+
+    try {
+      // Use count queries instead of fetching all data
+      const [
+        listsResult,
+        documentsResult,
+        eventsResult,
+        cardsResult,
+        subscriptionsResult,
+        notesResult
+      ] = await Promise.all([
+        supabase.from('lists').select('id', { count: 'exact', head: true }).eq('group_id', group.id),
+        supabase.from('documents').select('id', { count: 'exact', head: true }).eq('group_id', group.id),
+        supabase.from('events').select('id', { count: 'exact', head: true }).eq('group_id', group.id),
+        supabase.from('cards').select('id', { count: 'exact', head: true }).eq('group_id', group.id),
+        supabase.from('subscriptions').select('id', { count: 'exact', head: true }).eq('group_id', group.id),
+        supabase.from('notes').select('id', { count: 'exact', head: true }).eq('group_id', group.id)
+      ])
+
+      setCounts({
+        lists: listsResult.count || 0,
+        documents: documentsResult.count || 0,
+        events: eventsResult.count || 0,
+        cards: cardsResult.count || 0,
+        subscriptions: subscriptionsResult.count || 0,
+        notes: notesResult.count || 0
+      })
+    } catch (error) {
+      console.error('Error fetching dashboard counts:', error)
+    }
+  }, [group.id, isOnline])
+
+  // Selective fetch functions - only fetch what's needed (optimized to exclude file_data)
   const fetchSpecificData = useCallback(async (table: string) => {
     if (!isOnline) return
 
@@ -118,19 +166,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
             .eq('group_id', group.id)
             .order('created_at', { ascending: false })
           setLists(listsData || [])
+          // Update count
+          setCounts(prev => ({ ...prev, lists: listsData?.length || 0 }))
           break
         }
 
         case 'documents': {
+          // Exclude file_data from documents query - fetch only metadata
           const { data: documentsData } = await supabase
             .from('documents')
-            .select('*')
+            .select('id, name, url, file_size, mime_type, file_extension, uploaded_by, created_at, updated_at, group_id')
             .eq('group_id', group.id)
             .order('created_at', { ascending: false })
           
           // Fetch profiles for document uploaders
           if (documentsData && documentsData.length > 0) {
-            const uploaderIds = [...new Set(documentsData.map((d: any) => d.uploaded_by).filter(Boolean))]
+            const uploaderIds = Array.from(new Set(documentsData.map((d: any) => d.uploaded_by).filter(Boolean)))
             if (uploaderIds.length > 0) {
               const { data: profilesData } = await supabase
                 .from('profiles')
@@ -140,15 +191,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
               // Merge profiles with documents
               const documentsWithProfiles = documentsData.map((doc: any) => ({
                 ...doc,
+                file_data: null, // Explicitly set to null since we're not fetching it
                 uploader_profile: doc.uploaded_by ? profilesData?.find(p => p.id === doc.uploaded_by) || null : null
               }))
               setDocuments(documentsWithProfiles)
             } else {
-              setDocuments(documentsData)
+              setDocuments(documentsData.map((doc: any) => ({ ...doc, file_data: null })))
             }
           } else {
             setDocuments(documentsData || [])
           }
+          // Update count
+          setCounts(prev => ({ ...prev, documents: documentsData?.length || 0 }))
           break
         }
 
@@ -159,6 +213,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             .eq('group_id', group.id)
             .order('date', { ascending: true })
           setEvents(eventsData || [])
+          // Update count
+          setCounts(prev => ({ ...prev, events: eventsData?.length || 0 }))
           break
         }
 
@@ -169,6 +225,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             .eq('group_id', group.id)
             .order('created_at', { ascending: false })
           setCards(cardsData || [])
+          // Update count
+          setCounts(prev => ({ ...prev, cards: cardsData?.length || 0 }))
           break
         }
 
@@ -179,6 +237,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             .eq('group_id', group.id)
             .order('created_at', { ascending: false })
           setSubscriptions(subscriptionsData || [])
+          // Update count
+          setCounts(prev => ({ ...prev, subscriptions: subscriptionsData?.length || 0 }))
           break
         }
 
@@ -191,7 +251,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           
           // Fetch profiles for note creators
           if (notesData && notesData.length > 0) {
-            const creatorIds = [...new Set(notesData.map((n: any) => n.created_by))]
+            const creatorIds = Array.from(new Set(notesData.map((n: any) => n.created_by)))
             const { data: profilesData } = await supabase
               .from('profiles')
               .select('id, email, display_name, profile_image')
@@ -206,6 +266,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           } else {
             setNotes(notesData || [])
           }
+          // Update count
+          setCounts(prev => ({ ...prev, notes: notesData?.length || 0 }))
           break
         }
       }
@@ -214,37 +276,57 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [group.id, isOnline])
 
-  // Optimized initial data fetch - parallel queries
+  // Lazy load tab data when tab is opened
+  const fetchTabData = useCallback(async (tabName: AppView) => {
+    if (!isOnline || tabName === 'home' || tabName === 'settings') return
+
+    try {
+      setIsLoadingData(true)
+      await fetchSpecificData(tabName)
+      setLoadedTabs(prev => {
+        const newSet = new Set(prev)
+        newSet.add(tabName)
+        return newSet
+      })
+    } catch (error) {
+      console.error(`Error fetching tab data for ${tabName}:`, error)
+    } finally {
+      setIsLoadingData(false)
+    }
+  }, [isOnline, fetchSpecificData])
+
+  // Legacy fetchData - kept for backward compatibility (used by tabs' onUpdate)
+  // This fetches all data - use sparingly (e.g., pull-to-refresh)
   const fetchData = useCallback(async () => {
     if (!isOnline) return
 
     try {
       setIsLoadingData(true)
       
-      // Execute all queries in parallel for initial load
-      const [
-        listsResult,
-        documentsResult,
-        eventsResult,
-        cardsResult,
-        subscriptionsResult,
-        notesResult
-      ] = await Promise.all([
+      // Execute all queries in parallel - use array access to avoid TypeScript inference issues
+      const queries = await Promise.all([
         supabase.from('lists').select('*').eq('group_id', group.id).order('created_at', { ascending: false }),
-        supabase.from('documents').select('*').eq('group_id', group.id).order('created_at', { ascending: false }),
+        supabase.from('documents').select('id, name, url, file_size, mime_type, file_extension, uploaded_by, created_at, updated_at, group_id').eq('group_id', group.id).order('created_at', { ascending: false }),
         supabase.from('events').select('*').eq('group_id', group.id).order('date', { ascending: true }),
         supabase.from('cards').select('*').eq('group_id', group.id).order('created_at', { ascending: false }),
         supabase.from('subscriptions').select('*').eq('group_id', group.id).order('created_at', { ascending: false }),
         supabase.from('notes').select('*').eq('group_id', group.id).order('created_at', { ascending: false })
       ])
+      
+      const listsResult = queries[0]
+      const documentsResult = queries[1]
+      const eventsResult = queries[2]
+      const cardsResult = queries[3]
+      const subscriptionsResult = queries[4]
+      const notesResult = queries[5]
 
       // Collect all user IDs that need profiles
       const documentsData = documentsResult.data || []
       const notesData = notesResult.data || []
       
-      const uploaderIds = [...new Set(documentsData.map((d: any) => d.uploaded_by).filter(Boolean))]
-      const creatorIds = [...new Set(notesData.map((n: any) => n.created_by))]
-      const allUserIds = [...new Set([...uploaderIds, ...creatorIds])]
+      const uploaderIds = Array.from(new Set(documentsData.map((d: any) => d.uploaded_by).filter(Boolean)))
+      const creatorIds = Array.from(new Set(notesData.map((n: any) => n.created_by)))
+      const allUserIds = Array.from(new Set([...uploaderIds, ...creatorIds]))
 
       // Fetch all profiles at once if there are any user IDs
       let profilesData: any[] = []
@@ -256,9 +338,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         profilesData = data || []
       }
 
-      // Merge profiles with documents
+      // Merge profiles with documents (excluding file_data)
       const documentsWithProfiles = documentsData.map((doc: any) => ({
         ...doc,
+        file_data: null, // Explicitly exclude file_data
         uploader_profile: doc.uploaded_by ? profilesData.find(p => p.id === doc.uploaded_by) || null : null
       }))
 
@@ -274,6 +357,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
       setCards(cardsResult.data || [])
       setSubscriptions(subscriptionsResult.data || [])
       setNotes(notesWithProfiles)
+      
+      // Update counts
+      setCounts({
+        lists: listsResult.data?.length || 0,
+        documents: documentsData.length || 0,
+        events: eventsResult.data?.length || 0,
+        cards: cardsResult.data?.length || 0,
+        subscriptions: subscriptionsResult.data?.length || 0,
+        notes: notesData.length || 0
+      })
+      
+      // Mark all tabs as loaded
+      setLoadedTabs(new Set<AppView>(['lists', 'documents', 'events', 'cards', 'subscriptions', 'notes']))
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -311,7 +407,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [user.id, isOnline])
 
-  // Optimized realtime subscriptions - selective updates only
+  // Optimized realtime subscriptions - update counts on home, full data when tab is open
   const setupRealtimeSubscriptions = useCallback(() => {
     // Remove any existing channel with the same name first
     const channelName = `optimized-family-updates-${group.id}`
@@ -322,45 +418,81 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
     const channel = supabase
       .channel(channelName)
-      // Only update specific data when specific tables change
+      // Update counts on home view, full data if tab is loaded
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'lists', filter: `group_id=eq.${group.id}` },
-        () => fetchSpecificData('lists')
+        () => {
+          if (currentView === 'home') {
+            fetchDashboardCounts()
+          } else if (loadedTabs.has('lists')) {
+            fetchSpecificData('lists')
+          }
+        }
       )
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'documents', filter: `group_id=eq.${group.id}` },
-        () => fetchSpecificData('documents')
+        () => {
+          if (currentView === 'home') {
+            fetchDashboardCounts()
+          } else if (loadedTabs.has('documents')) {
+            fetchSpecificData('documents')
+          }
+        }
       )
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'events', filter: `group_id=eq.${group.id}` },
-        () => fetchSpecificData('events')
+        () => {
+          if (currentView === 'home') {
+            fetchDashboardCounts()
+          } else if (loadedTabs.has('events')) {
+            fetchSpecificData('events')
+          }
+        }
       )
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'cards', filter: `group_id=eq.${group.id}` },
-        () => fetchSpecificData('cards')
+        () => {
+          if (currentView === 'home') {
+            fetchDashboardCounts()
+          } else if (loadedTabs.has('cards')) {
+            fetchSpecificData('cards')
+          }
+        }
       )
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'subscriptions', filter: `group_id=eq.${group.id}` },
-        () => fetchSpecificData('subscriptions')
+        () => {
+          if (currentView === 'home') {
+            fetchDashboardCounts()
+          } else if (loadedTabs.has('subscriptions')) {
+            fetchSpecificData('subscriptions')
+          }
+        }
       )
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'notes', filter: `group_id=eq.${group.id}` },
-        () => fetchSpecificData('notes')
+        () => {
+          if (currentView === 'home') {
+            fetchDashboardCounts()
+          } else if (loadedTabs.has('notes')) {
+            fetchSpecificData('notes')
+          }
+        }
       )
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [group.id, fetchSpecificData])
+  }, [group.id, currentView, loadedTabs, fetchDashboardCounts, fetchSpecificData])
 
   // Pull-to-refresh functionality - only for home view
   const handleRefresh = useCallback(async () => {
     await Promise.all([
-      fetchData(),
+      fetchDashboardCounts(),
       fetchAllGroups()
     ])
-  }, [fetchData, fetchAllGroups])
+  }, [fetchDashboardCounts, fetchAllGroups])
 
   const { isRefreshing, pullDistance, containerRef } = usePullToRefresh({
     onRefresh: handleRefresh,
@@ -368,18 +500,44 @@ export const Dashboard: React.FC<DashboardProps> = ({
     enabled: isOnline && !isLoadingData && !isSwitchingFamily && currentView === 'home'
   })
 
+  // Reset loaded tabs when group changes
+  useEffect(() => {
+    setLoadedTabs(new Set())
+    setLists([])
+    setDocuments([])
+    setEvents([])
+    setCards([])
+    setSubscriptions([])
+    setNotes([])
+    setCounts({
+      lists: 0,
+      documents: 0,
+      events: 0,
+      cards: 0,
+      subscriptions: 0,
+      notes: 0
+    })
+    // Reset switching state when group changes
+    setIsSwitchingFamily(false)
+  }, [group.id])
+
+  // Initialize: fetch counts only on mount
   useEffect(() => {
     let cleanup: (() => void) | undefined
 
     const initialize = async () => {
       try {
         if (isOnline) {
-          await fetchData()
+          await fetchDashboardCounts()
           await fetchAllGroups()
           cleanup = setupRealtimeSubscriptions()
         }
       } catch (error) {
         console.error('Dashboard useEffect error:', error)
+      } finally {
+        setIsLoadingData(false)
+        // Ensure switching state is reset after initialization
+        setIsSwitchingFamily(false)
       }
     }
 
@@ -394,7 +552,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
         clearTimeout(fetchTimeoutRef.current)
       }
     }
-  }, [group.id, isOnline, fetchData, fetchAllGroups, setupRealtimeSubscriptions])
+  }, [group.id, isOnline, fetchDashboardCounts, fetchAllGroups, setupRealtimeSubscriptions])
+
+  // Lazy load tab data when view changes
+  useEffect(() => {
+    if (currentView !== 'home' && currentView !== 'settings' && isOnline) {
+      // Check if tab is already loaded before fetching
+      const isLoaded = loadedTabs.has(currentView)
+      if (!isLoaded) {
+        fetchTabData(currentView)
+      }
+    }
+  }, [currentView, isOnline, loadedTabs, fetchTabData])
 
   const handleGroupSwitch = async (newGroup: FamilyGroup) => {
     setIsSwitchingFamily(true)
@@ -435,7 +604,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       name: t('dashboard.tabs.lists'),
       icon: CheckSquare,
       color: 'from-cyan-400 via-blue-500 to-indigo-600',
-      count: lists.length,
+      count: loadedTabs.has('lists') ? lists.length : counts.lists,
       description: t('lists.description')
     },
     {
@@ -443,7 +612,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       name: t('dashboard.tabs.documents'),
       icon: FolderOpen,
       color: 'from-emerald-400 via-teal-500 to-green-600',
-      count: documents.length,
+      count: loadedTabs.has('documents') ? documents.length : counts.documents,
       description: t('documents.description')
     },
     {
@@ -451,7 +620,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       name: t('dashboard.tabs.events'),
       icon: CalendarDays,
       color: 'from-violet-400 via-purple-500 to-indigo-600',
-      count: events.length,
+      count: loadedTabs.has('events') ? events.length : counts.events,
       description: t('events.description')
     },
     {
@@ -459,7 +628,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       name: t('dashboard.tabs.cards'),
       icon: Wallet,
       color: 'from-orange-400 via-red-500 to-pink-600',
-      count: cards.length,
+      count: loadedTabs.has('cards') ? cards.length : counts.cards,
       description: t('cards.description')
     },
     {
@@ -467,7 +636,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       name: t('dashboard.tabs.subscriptions'),
       icon: RotateCcw,
       color: 'from-yellow-400 via-orange-500 to-red-600',
-      count: subscriptions.length,
+      count: loadedTabs.has('subscriptions') ? subscriptions.length : counts.subscriptions,
       description: t('subscriptions.description')
     },
     {
@@ -475,7 +644,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       name: t('dashboard.tabs.notes'),
       icon: Edit3,
       color: 'from-pink-400 via-rose-500 to-purple-600',
-      count: notes.length,
+      count: loadedTabs.has('notes') ? notes.length : counts.notes,
       description: t('notes.description')
     }
   ]
@@ -852,4 +1021,4 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
     </div>
   )
-} 
+}
