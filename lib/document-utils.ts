@@ -267,7 +267,7 @@ export const fileToUint8Array = async (
  * Converts Uint8Array back to a downloadable blob
  */
 export const uint8ArrayToBlob = (data: Uint8Array, mimeType: string): Blob => {
-  return new Blob([data], { type: mimeType })
+  return new Blob([data as BlobPart], { type: mimeType })
 }
 
 /**
