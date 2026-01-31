@@ -48,7 +48,9 @@
     "back": "Indietro",
     "next": "Avanti",
     "previous": "Precedente",
-    "menu": "Menu"
+    "menu": "Menu",
+    "userSettings": "Impostazioni Utente",
+    "familySettings": "Impostazioni Famiglia"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -97,7 +99,10 @@
     "createGroupDescription": "Dai un nome alla tua famiglia per iniziare. Potrai invitare altri membri in seguito.",
     "groupNamePlaceholder": "La Famiglia Rossi",
     "joinGroupDescription": "Inserisci il codice invito condiviso dal tuo familiare per unirti alla loro famiglia.",
-    "inviteCodePlaceholder": "Inserisci codice invito"
+    "inviteCodePlaceholder": "Inserisci codice invito",
+    "viewFamilyInfo": "Visualizza Informazioni Famiglia",
+    "viewOnly": "Sola Lettura",
+    "addFamily": "Aggiungi Famiglia"
   },
   "settings": {
     "title": "Impostazioni",

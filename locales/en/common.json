@@ -48,7 +48,9 @@
     "back": "Back",
     "next": "Next",
     "previous": "Previous",
-    "menu": "Menu"
+    "menu": "Menu",
+    "userSettings": "User Settings",
+    "familySettings": "Family Settings"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -97,7 +99,10 @@
     "createGroupDescription": "Give your family a name to get started. You'll be able to invite other members later.",
     "groupNamePlaceholder": "The Smith Family",
     "joinGroupDescription": "Enter the invite code shared by your family member to join their family.",
-    "inviteCodePlaceholder": "Enter invite code"
+    "inviteCodePlaceholder": "Enter invite code",
+    "viewFamilyInfo": "View Family Info",
+    "viewOnly": "View Only",
+    "addFamily": "Add Family"
   },
   "settings": {
     "title": "Settings",

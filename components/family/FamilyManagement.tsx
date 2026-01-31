@@ -15,7 +15,6 @@ import {
   DialogFooter
 } from '../ui/dialog'
 import { 
-  ArrowLeft, 
   Users, 
   Trash2, 
   Crown, 
@@ -36,13 +35,14 @@ import {
   Moon
 } from 'lucide-react'
 import { IconSelector } from '../ui/IconSelector'
+import { BottomActions } from '../ui/BottomActions'
 
 interface FamilyGroup {
   id: string
   name: string
   owner_id: string
   invite_code: string
-  created_at: string
+  created_at?: string
   icon?: string
 }
 
@@ -301,44 +301,14 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
 
   const isOwner = group.owner_id === user.id
 
-  if (!isOwner) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <Card className="max-w-md w-full mx-4">
-          <CardContent className="p-8 text-center">
-            <AlertTriangle className="h-16 w-16 text-orange-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-            <p className="text-muted-foreground mb-6">
-              Only family owners can access family management settings.
-            </p>
-            <Button onClick={onBack} variant="outline">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Go Back
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 sm:p-6 overflow-x-hidden">
-      <div className="max-w-4xl mx-auto w-full">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6 sm:mb-8">
-          <Button 
-            onClick={onBack}
-            variant="ghost"
-            size="sm"
-            className="p-2 flex-shrink-0"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="min-w-0 flex-1">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex flex-col">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-32">
+        <div className="max-w-4xl mx-auto w-full">
+          {/* Header */}
+          <div className="mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold truncate">Family Management</h1>
-            <p className="text-muted-foreground text-sm sm:text-base truncate">Manage "{group.name}"</p>
           </div>
-        </div>
 
         {error && (
           <Alert variant="destructive" className="mb-4 sm:mb-6">
@@ -362,16 +332,18 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 p-2">
                     {renderFamilyIcon(group.icon)}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowIconSelector(true)}
-                    disabled={!isOnline || isUpdatingIcon}
-                    className="text-xs"
-                  >
-                    <Edit3 className="h-3 w-3 mr-1" />
-                    {isUpdatingIcon ? 'Updating...' : 'Change'}
-                  </Button>
+                  {isOwner && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowIconSelector(true)}
+                      disabled={!isOnline || isUpdatingIcon}
+                      className="text-xs"
+                    >
+                      <Edit3 className="h-3 w-3 mr-1" />
+                      {isUpdatingIcon ? 'Updating...' : 'Change'}
+                    </Button>
+                  )}
                 </div>
               </div>
               <div>
@@ -384,13 +356,15 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
                   {group.invite_code}
                 </p>
               </div>
-              <div>
-                <label className="text-xs sm:text-sm font-medium text-muted-foreground">Created</label>
-                <p className="flex items-center gap-2 text-sm sm:text-base">
-                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                  <span className="truncate">{formatDate(group.created_at)}</span>
-                </p>
-              </div>
+              {group.created_at && (
+                <div>
+                  <label className="text-xs sm:text-sm font-medium text-muted-foreground">Created</label>
+                  <p className="flex items-center gap-2 text-sm sm:text-base">
+                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                    <span className="truncate">{formatDate(group.created_at)}</span>
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="text-xs sm:text-sm font-medium text-muted-foreground">Total Members</label>
                 <p className="text-base sm:text-lg font-semibold">{members.length}</p>
@@ -458,8 +432,8 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
                         <div className="text-xs text-muted-foreground sm:hidden">
                           {formatDate(member.created_at).split(',')[0]}
                         </div>
-                        {/* Remove member button - only show for non-owner members */}
-                        {member.user_id !== group.owner_id && (
+                        {/* Remove member button - only show for owner and non-owner members */}
+                        {isOwner && member.user_id !== group.owner_id && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -479,114 +453,118 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
             </CardContent>
           </Card>
 
-          {/* Invite Members Card */}
-          <Card className="lg:col-span-2 w-full min-w-0">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <UserPlus className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                <span className="truncate">Invite New Members</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="w-full min-w-0">
-              <div className="space-y-3 sm:space-y-4 w-full">
-                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed break-words">
-                  Share this link with family members to invite them to join "{group.name}". 
-                  They can sign up or log in and will be automatically added to your family.
-                </p>
-                
-                <div className="w-full overflow-hidden">
-                  <div className="flex items-center gap-2 p-2 sm:p-3 bg-slate-50 dark:bg-slate-800 rounded-lg w-full">
-                    <Link2 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                    <div className="flex-1 min-w-0 overflow-hidden">
-                      <code className="text-xs sm:text-sm font-mono text-muted-foreground block w-full overflow-hidden text-ellipsis whitespace-nowrap">
-                        {generateInviteLink()}
-                      </code>
-                    </div>
-                    <div className="flex gap-1 flex-shrink-0">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={copyInviteLink}
-                        disabled={!isOnline}
-                        className="h-6 w-6 sm:h-8 sm:w-8 p-0 flex-shrink-0"
-                        title="Copy invite link"
-                      >
-                        {inviteLinkCopied ? (
-                          <Check className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
-                        ) : (
-                          <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={shareInviteLink}
-                        disabled={!isOnline}
-                        className="h-6 w-6 sm:h-8 sm:w-8 p-0 flex-shrink-0"
-                        title="Share invite link"
-                      >
-                        <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                      </Button>
+          {/* Invite Members Card - Only show for owners */}
+          {isOwner && (
+            <Card className="lg:col-span-2 w-full min-w-0">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <UserPlus className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                  <span className="truncate">Invite New Members</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="w-full min-w-0">
+                <div className="space-y-3 sm:space-y-4 w-full">
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed break-words">
+                    Share this link with family members to invite them to join "{group.name}". 
+                    They can sign up or log in and will be automatically added to your family.
+                  </p>
+                  
+                  <div className="w-full overflow-hidden">
+                    <div className="flex items-center gap-2 p-2 sm:p-3 bg-slate-50 dark:bg-slate-800 rounded-lg w-full">
+                      <Link2 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <code className="text-xs sm:text-sm font-mono text-muted-foreground block w-full overflow-hidden text-ellipsis whitespace-nowrap">
+                          {generateInviteLink()}
+                        </code>
+                      </div>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={copyInviteLink}
+                          disabled={!isOnline}
+                          className="h-6 w-6 sm:h-8 sm:w-8 p-0 flex-shrink-0"
+                          title="Copy invite link"
+                        >
+                          {inviteLinkCopied ? (
+                            <Check className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={shareInviteLink}
+                          disabled={!isOnline}
+                          className="h-6 w-6 sm:h-8 sm:w-8 p-0 flex-shrink-0"
+                          title="Share invite link"
+                        >
+                          <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
+                  
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full">
+                    <Button
+                      onClick={copyInviteLink}
+                      disabled={!isOnline}
+                      className="group flex-1 h-12 sm:h-11 text-sm min-w-0 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 dark:from-slate-700 dark:to-slate-800 dark:hover:from-slate-600 dark:hover:to-slate-700 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 shadow-md hover:shadow-lg transition-all duration-200"
+                      variant="outline"
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        {inviteLinkCopied ? (
+                          <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        ) : (
+                          <Copy className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+                        )}
+                        <span className="font-medium truncate">
+                          {inviteLinkCopied ? 'Copied!' : 'Copy Link'}
+                        </span>
+                      </div>
+                    </Button>
+                    <Button
+                      onClick={shareInviteLink}
+                      disabled={!isOnline}
+                      className="group flex-1 h-12 sm:h-11 text-sm min-w-0 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <Share2 className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+                        <span className="font-medium truncate">Share Link</span>
+                      </div>
+                    </Button>
+                  </div>
                 </div>
-                
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full">
-                  <Button
-                    onClick={copyInviteLink}
-                    disabled={!isOnline}
-                    className="group flex-1 h-12 sm:h-11 text-sm min-w-0 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 dark:from-slate-700 dark:to-slate-800 dark:hover:from-slate-600 dark:hover:to-slate-700 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 shadow-md hover:shadow-lg transition-all duration-200"
-                    variant="outline"
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      {inviteLinkCopied ? (
-                        <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                      ) : (
-                        <Copy className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
-                      )}
-                      <span className="font-medium truncate">
-                        {inviteLinkCopied ? 'Copied!' : 'Copy Link'}
-                      </span>
-                    </div>
-                  </Button>
-                  <Button
-                    onClick={shareInviteLink}
-                    disabled={!isOnline}
-                    className="group flex-1 h-12 sm:h-11 text-sm min-w-0 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      <Share2 className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
-                      <span className="font-medium truncate">Share Link</span>
-                    </div>
-                  </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Danger Zone - Only show for owners */}
+        {isOwner && (
+          <Card className="mt-6 pt-8 sm:mt-8 border-red-200 dark:border-red-800">
+            <CardContent>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-red-800 dark:text-red-200 text-sm sm:text-base">Delete Family</h3>
+                  <p className="text-xs sm:text-sm text-red-600 dark:text-red-300 mt-1">
+                    Permanently delete this family and all its data. This action cannot be undone.
+                  </p>
                 </div>
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowDeleteDialog(true)}
+                  disabled={!isOnline}
+                  className="w-full sm:w-auto h-9 sm:h-10 text-sm flex-shrink-0"
+                >
+                  <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                  Delete Family
+                </Button>
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Danger Zone */}
-        <Card className="mt-6 pt-8 sm:mt-8 border-red-200 dark:border-red-800">
-          <CardContent>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <h3 className="font-semibold text-red-800 dark:text-red-200 text-sm sm:text-base">Delete Family</h3>
-                <p className="text-xs sm:text-sm text-red-600 dark:text-red-300 mt-1">
-                  Permanently delete this family and all its data. This action cannot be undone.
-                </p>
-              </div>
-              <Button
-                variant="destructive"
-                onClick={() => setShowDeleteDialog(true)}
-                disabled={!isOnline}
-                className="w-full sm:w-auto h-9 sm:h-10 text-sm flex-shrink-0"
-              >
-                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                Delete Family
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        )}
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -678,7 +656,19 @@ export const FamilyManagement: React.FC<FamilyManagementProps> = ({
           open={showIconSelector}
           onOpenChange={setShowIconSelector}
         />
+        </div>
       </div>
+
+      {/* Bottom Actions */}
+      <BottomActions
+        user={user}
+        onHome={onBack}
+        onLogout={async () => {
+          await supabase.auth.signOut()
+        }}
+        isHome={false}
+        showHomeButton={true}
+      />
     </div>
   )
 } 

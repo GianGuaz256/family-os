@@ -1,5 +1,6 @@
 import React from 'react'
 import { User } from '@supabase/supabase-js'
+import { useTranslation } from 'react-i18next'
 import { Button } from './button'
 import { Avatar, AvatarFallback, AvatarImage } from './avatar'
 import { ThemeSwitcher } from './ThemeSwitcher'
@@ -18,7 +19,8 @@ import {
   User as UserIcon, 
   Shield,
   Plus,
-  ArrowLeft
+  ArrowLeft,
+  Users
 } from 'lucide-react'
 import { renderUserAvatar } from '../../lib/avatar-utils'
 
@@ -36,10 +38,11 @@ interface BottomActionsProps {
   onSettings?: () => void
   onProfile?: () => void
   onLogout: () => void
-  onManageFamilies?: () => void
+  onFamilySettings?: () => void
   contextualActions?: ContextualAction[]
   className?: string
   isHome?: boolean
+  showHomeButton?: boolean
 }
 
 
@@ -50,11 +53,13 @@ export const BottomActions: React.FC<BottomActionsProps> = ({
   onSettings,
   onProfile,
   onLogout,
-  onManageFamilies,
+  onFamilySettings,
   contextualActions = [],
   className = '',
-  isHome = false
+  isHome = false,
+  showHomeButton = true
 }) => {
+  const { t } = useTranslation()
   return (
     <div className={`fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 ${className}`}>
       <div className="flex items-center gap-4 bg-white/10 dark:bg-black/10 backdrop-blur-xl border border-white/40 dark:border-white/20 rounded-full px-6 py-3 shadow-2xl shadow-black/10 dark:shadow-black/30 relative overflow-hidden ring-1 ring-black/5 dark:ring-white/5">
@@ -64,16 +69,17 @@ export const BottomActions: React.FC<BottomActionsProps> = ({
         
         {/* Content with relative positioning to appear above overlays */}
         <div className="flex items-center gap-4 relative z-10">
-          {/* Left Section - Home/Back Button */}
-          <Button
-            variant={isHome ? "default" : "ghost"}
-            size="icon"
-            className="rounded-full w-10 h-10 bg-white/20 dark:bg-white/10 hover:bg-white/30 dark:hover:bg-white/20 border border-white/30 dark:border-white/20 backdrop-blur-sm"
-            onClick={onHome}
-            disabled={isHome}
-          >
-            {isHome ? <Home className="h-5 w-5" /> : <ArrowLeft className="h-5 w-5" />}
-          </Button>
+          {/* Left Section - Home/Back Button - Only show when not in home, onHome is provided, and showHomeButton is true */}
+          {onHome && !isHome && showHomeButton && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full w-10 h-10 bg-white/20 dark:bg-white/10 hover:bg-white/30 dark:hover:bg-white/20 border border-white/30 dark:border-white/20 backdrop-blur-sm"
+              onClick={onHome}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          )}
           
           {/* Center Section - Theme and Profile */}
           <div className="bg-white/20 dark:bg-white/10 rounded-full p-1 border border-white/30 dark:border-white/20 backdrop-blur-sm">
@@ -88,17 +94,17 @@ export const BottomActions: React.FC<BottomActionsProps> = ({
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="mb-4 w-56 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/20 dark:border-white/10">
-              <DropdownMenuLabel className="text-xs">
-                <div className="flex items-center space-x-3 p-2">
-                  <Avatar className="h-10 w-10">
+            <DropdownMenuContent align="center" className="mb-4 w-56 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/20 dark:border-white/10 p-2">
+              <DropdownMenuLabel className="text-xs px-2 py-1.5">
+                <div className="flex items-center space-x-2.5">
+                  <Avatar className="h-9 w-9 flex-shrink-0">
                     {renderUserAvatar(user, { size: 'lg', fallbackTextSize: 'sm' })}
                   </Avatar>
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
+                  <div className="flex flex-col space-y-1 min-w-0 flex-1">
+                    <p className="text-sm font-medium leading-none truncate">
                       {user.user_metadata?.display_name || 'User'}
                     </p>
-                    <p className="text-xs leading-none text-muted-foreground">
+                    <p className="text-xs leading-none text-muted-foreground truncate">
                       {user.email}
                     </p>
                   </div>
@@ -109,31 +115,28 @@ export const BottomActions: React.FC<BottomActionsProps> = ({
               {onProfile && (
                 <DropdownMenuItem onClick={onProfile} className="text-sm">
                   <UserIcon className="mr-2 h-4 w-4" />
-                  Profile
+                  {t('navigation.profile')}
                 </DropdownMenuItem>
               )}
               
               {onSettings && (
                 <DropdownMenuItem onClick={onSettings} className="text-sm">
                   <Settings className="mr-2 h-4 w-4" />
-                  Settings
+                  {t('navigation.userSettings')}
                 </DropdownMenuItem>
               )}
               
-              {onManageFamilies && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onManageFamilies} className="text-sm">
-                    <Shield className="mr-2 h-4 w-4" />
-                    Manage Families
-                  </DropdownMenuItem>
-                </>
+              {onFamilySettings && (
+                <DropdownMenuItem onClick={onFamilySettings} className="text-sm">
+                  <Users className="mr-2 h-4 w-4" />
+                  {t('navigation.familySettings')}
+                </DropdownMenuItem>
               )}
               
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onLogout} className="text-sm text-destructive focus:text-destructive">
+              <DropdownMenuItem onClick={onLogout} className="text-sm text-destructive focus:text-destructive pr-4">
                 <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
+                {t('auth.logout')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

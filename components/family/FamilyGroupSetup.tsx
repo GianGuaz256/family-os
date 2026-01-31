@@ -15,7 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog'
-import { Home, Plus, Users, Settings } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs'
+import { Home, Plus, Users, Settings, Eye } from 'lucide-react'
 import { FamilyManagement } from './FamilyManagement'
 import { GradientText } from '../ui/gradient-text'
 
@@ -42,8 +43,8 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
   const { t } = useTranslation()
   const [groups, setGroups] = useState<FamilyGroup[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showJoinModal, setShowJoinModal] = useState(false)
+  const [showAddFamilyModal, setShowAddFamilyModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<'create' | 'join'>('create')
   const [newGroupName, setNewGroupName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [error, setError] = useState('')
@@ -116,7 +117,7 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
       if (memberError) throw memberError
 
       setNewGroupName('')
-      setShowCreateModal(false)
+      setShowAddFamilyModal(false)
       await fetchUserGroups()
     } catch (error: any) {
       console.error('Error creating group:', error)
@@ -148,7 +149,7 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
       if (memberError) throw memberError
 
       setInviteCode('')
-      setShowJoinModal(false)
+      setShowAddFamilyModal(false)
       await fetchUserGroups()
     } catch (error: any) {
       console.error('Error joining group:', error)
@@ -236,6 +237,7 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
           user={user}
           onLogout={handleLogout}
           isHome={true}
+          showHomeButton={false}
         />
       </div>
     )
@@ -297,21 +299,26 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
                   >
                     {t('family.enterFamily')}
                   </Button>
-                  {group.owner_id === user.id && (
-                    <Button 
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedGroupForManagement(group)
-                      }}
-                      variant="outline"
-                      className="w-full"
-                      size="sm"
-                      disabled={!isOnline}
-                    >
+                  <Button 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setSelectedGroupForManagement(group)
+                    }}
+                    variant={group.owner_id === user.id ? "outline" : "ghost"}
+                    className={group.owner_id === user.id 
+                      ? "w-full" 
+                      : "w-full text-muted-foreground hover:text-foreground border border-muted-foreground/30 hover:border-muted-foreground/50"
+                    }
+                    size="sm"
+                    disabled={!isOnline}
+                  >
+                    {group.owner_id === user.id ? (
                       <Settings className="h-4 w-4 mr-2" />
-                      {t('family.manageFamily')}
-                    </Button>
-                  )}
+                    ) : (
+                      <Eye className="h-4 w-4 mr-2" />
+                    )}
+                    {group.owner_id === user.id ? t('family.manageFamily') : t('family.viewFamilyInfo')}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -334,85 +341,81 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
 
 
 
-        {/* Create Family Modal */}
-        <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        {/* Add Family Modal with Tabs */}
+        <Dialog open={showAddFamilyModal} onOpenChange={setShowAddFamilyModal}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle className="text-xl">{t('family.createGroup')}</DialogTitle>
+              <DialogTitle className="text-xl">{t('family.addFamily')}</DialogTitle>
               <DialogDescription>
-                {t('family.createGroupDescription')}
+                {t('family.noFamiliesDescription')}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-6 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="family-name" className="text-sm font-medium">{t('family.groupName')}</Label>
-                <Input
-                  id="family-name"
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  placeholder={t('family.groupNamePlaceholder')}
-                  className="text-base"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      createGroup()
-                    }
-                  }}
-                />
-              </div>
-              <div className="flex gap-3">
-                <Button onClick={createGroup} className="flex-1" size="lg">
-                  {t('family.createGroup')}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowCreateModal(false)}
-                  size="lg"
-                >
-                  {t('common.cancel')}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Join Family Modal */}
-        <Dialog open={showJoinModal} onOpenChange={setShowJoinModal}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle className="text-xl">{t('family.joinGroup')}</DialogTitle>
-              <DialogDescription>
-                {t('family.joinGroupDescription')}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="invite-code" className="text-sm font-medium">{t('family.inviteCode')}</Label>
-                <Input
-                  id="invite-code"
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                  placeholder={t('family.inviteCodePlaceholder')}
-                  className="text-base font-mono"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      joinGroup()
-                    }
-                  }}
-                />
-              </div>
-              <div className="flex gap-3">
-                <Button onClick={joinGroup} className="flex-1" size="lg">
-                  {t('family.joinGroup')}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowJoinModal(false)}
-                  size="lg"
-                >
-                  {t('common.cancel')}
-                </Button>
-              </div>
-            </div>
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'create' | 'join')} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="create">{t('family.createGroup')}</TabsTrigger>
+                <TabsTrigger value="join">{t('family.joinGroup')}</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="create" className="space-y-6 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="family-name" className="text-sm font-medium">{t('family.groupName')}</Label>
+                  <Input
+                    id="family-name"
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    placeholder={t('family.groupNamePlaceholder')}
+                    className="text-base"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        createGroup()
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <Button onClick={createGroup} className="flex-1" size="lg">
+                    {t('family.createGroup')}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowAddFamilyModal(false)}
+                    size="lg"
+                  >
+                    {t('common.cancel')}
+                  </Button>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="join" className="space-y-6 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="invite-code" className="text-sm font-medium">{t('family.inviteCode')}</Label>
+                  <Input
+                    id="invite-code"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                    placeholder={t('family.inviteCodePlaceholder')}
+                    className="text-base font-mono"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        joinGroup()
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <Button onClick={joinGroup} className="flex-1" size="lg">
+                    {t('family.joinGroup')}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowAddFamilyModal(false)}
+                    size="lg"
+                  >
+                    {t('common.cancel')}
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
           </DialogContent>
         </Dialog>
       </div>
@@ -421,19 +424,16 @@ export const FamilyGroupSetup: React.FC<FamilyGroupSetupProps> = ({
         user={user}
         onLogout={handleLogout}
         isHome={true}
+        showHomeButton={false}
         contextualActions={[
           {
             icon: Plus,
-            label: t('family.createGroup'),
-            onClick: () => setShowCreateModal(true),
+            label: t('family.addFamily'),
+            onClick: () => {
+              setActiveTab('create')
+              setShowAddFamilyModal(true)
+            },
             disabled: !isOnline
-          },
-          {
-            icon: Users,
-            label: t('family.joinGroup'),
-            onClick: () => setShowJoinModal(true),
-            disabled: !isOnline,
-            variant: 'secondary'
           }
         ]}
       />
